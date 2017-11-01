@@ -31,7 +31,11 @@ spec.loader.exec_module(micomplete)
 
 # import dev minerva modules
 sys.path.append('/home/hugoson/git/minerva')
-from minerva import parseTaxonomy, parseMapFile
+try:
+    from minerva import parseTaxonomy, parseMapFile
+except ImportError:
+    from parse_taxonomy import parseTaxonomy
+    from parse_minerva_map import parseMapFile
 
 
 def _worker(fasta, seqType, name, hmm, q, gen_directory, evalue=1e-20, outfile=None):
@@ -54,7 +58,6 @@ def _worker(fasta, seqType, name, hmm, q, gen_directory, evalue=1e-20, outfile=N
             faa = micomplete.create_proteome(fna, re.sub('\/', '', name))
         print(name)
         taxid = tax.find_taxid(name)
-        print(taxid)
         if taxid:
             lineage = tax.parse_taxa(taxid)
             taxonomy = { rank: tax.find_scientific_name(taxid) for rank, taxid 
@@ -268,9 +271,9 @@ def main():
         except AssertionError:
             raise RuntimeError('Unable to find hmmsearch in path')
 
-    #for i in parseMapFile(args.outfile, "match", "RAYT1_pruned", "phylum"):
-    #    print(i)
-    #sys.exit()
+    for i in parseMapFile(args.outfile, ["match", "order"], ["RAYT1_pruned", "Burkholderiales"], ["gene", "gene_path"]):
+        print(i)
+    sys.exit()
 
     # Initialise taxdump, threadsafety
     parseTaxonomy()
