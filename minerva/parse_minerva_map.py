@@ -12,10 +12,11 @@ class parseMapFile():
         self.map_file = map_file
         self.query_column = query_column
         self.query_selection = query_selection
+        #print(self.query_selection)
+        #print(self.query_column)
         if len(self.query_selection) is not len(self.query_column):
             raise AttributeError("Number of queries must be equal to number of \
                     columns")
-        print(self.query_column)
         gene_files = open(self.map_file, 'r+b')
         self.gene_mem = mmap.mmap(gene_files.fileno(), 0, prot=mmap.PROT_READ)
         headers = str(self.gene_mem.readline(), "utf-8").split('\t')
@@ -50,7 +51,7 @@ class parseMapFile():
             mapping = str(mapping, "utf-8").split('\t')
             for sel, col in zip(self.query_selection, self.col):
                 #print("match %s in %s" % (sel, col))
-                if sel != mapping[col]:
+                if not re.fullmatch(sel, mapping[col], re.IGNORECASE):
                     pass_ = False
                     break
                 #print("found %s in %s" % (sel, mapping[col]))
