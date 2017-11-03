@@ -271,10 +271,6 @@ def main():
         except AssertionError:
             raise RuntimeError('Unable to find hmmsearch in path')
 
-    for i in parseMapFile(args.outfile, ["match", "order"], ["RAYT1_pruned", "Burkholderiales"], ["gene", "gene_path"]):
-        print(i)
-    sys.exit()
-
     # Initialise taxdump, threadsafety
     parseTaxonomy()
 
