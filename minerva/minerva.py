@@ -3,6 +3,7 @@
 from __future__ import print_function
 from Bio import SeqIO
 from micomplete import calcCompleteness
+from micomplete import parseSeqStats
 #from micomplete import micomplete
 from contextlib import contextmanager
 from distutils import spawn
@@ -21,6 +22,7 @@ import multiprocessing as mp
 import subprocess
 import tarfile
 import hashlib
+import subprocess
 
 # import dev version of miComplete
 import importlib.util
@@ -48,15 +50,20 @@ def _worker(fasta, seqType, name, hmm, q, gen_directory, evalue=1e-20, outfile=N
         return #not supported for now
     elif re.match("(gb.?.?)|genbank", seqType):
         name = get_gbk_feature(fasta, 'organism')
+        print("Working on %s" % name)
         faa = micomplete.extract_gbk_trans(fasta, re.sub('\)|\(|\{|\}|\[|\]|\/|\/', 
             '', name) + '.faa')
+        fna = get_contigs_gbk(fasta, re.sub('\/', '', name))
         # if there is no translation to extract, get contigs and use prodigal
         # find ORFs instead
         if os.stat(faa).st_size == 0:
             os.remove(faa)
-            fna = get_contigs_gbk(fasta, re.sub('\/', '', name))
             faa = micomplete.create_proteome(fna, re.sub('\/', '', name))
-        print(name)
+        # find CRISPRs
+        c_out, crispr_bool = find_CRISPRs(fna, re.sub('\/', '', name))
+        # grab size and GC stats
+        pseqs = parseSeqStats(fasta, name, seqType)
+        seqLength, alllengths, GC = pseqs.get_length()
         taxid = tax.find_taxid(name)
         if taxid:
             lineage = tax.parse_taxa(taxid)
@@ -76,11 +83,11 @@ def _worker(fasta, seqType, name, hmm, q, gen_directory, evalue=1e-20, outfile=N
     if not gene_matches:
         gene_matches['-'].append(['-', '-'])
     compile_results(name, gene_matches, taxid, taxonomy, fasta, seqType, faa, q, 
-            gen_directory)
+            crispr_bool, c_out, seqLength, GC, gen_directory )
     return 
 
 def compile_results(name, gene_matches, taxid, taxonomy, fasta, seqType, faa, q,
-        gen_directory="protein_matches"):
+        crispr_bool, c_out, seqLength, GC, gen_directory="protein_matches"):
     for gene, match in gene_matches.items():
         #print(match)
         result = {}
@@ -99,6 +106,10 @@ def compile_results(name, gene_matches, taxid, taxonomy, fasta, seqType, faa, q,
             pass
         result['genome_path'] = os.path.abspath(fasta)
         result['proteome_path'] = os.path.abspath(faa)
+        result['crispr'] = str(crispr_bool)
+        result['crispr_path'] = c_out
+        result['genome_length'] = str(seqLength)
+        result['gc-content'] = str(GC)
         # put result dict in queue for listener
         q.put(result)
         # also put the seq-object
@@ -222,7 +233,11 @@ def init_results_table(q, outfile=None):
             'Species',
             'Gene_path',
             'Genome_path',
-            'Proteome_path'
+            'Proteome_path',
+            'CRISPR',
+            'CRISPR_path',
+            'Genome_length',
+            'GC-content'
             ]
     if outfile and not outfile == '-':
         headers = tuple(headers)
@@ -232,6 +247,34 @@ def init_results_table(q, outfile=None):
             writer = csv.writer(handle, delimiter='\t')
             writer.writerow(headers)
     return headers
+
+def find_CRISPRs(fna, name=None):
+    """Uses CRISPR recognition tool (CRT) to find putative CRISPR repeats in 
+    given fna file, returns out-table, as well as True / False for positive / 
+    negative result."""
+    input_handle = open(fna, mode='r')
+    if name:
+        output_handle = name + ".cout"
+    else:
+        baseName = os.path.basename(gbkfile).split('.')[0]
+        outfile = baseName + ".cout"
+        output_handle = outfile
+    run_fmt = [ 'java', '-cp', 'CRT1.2-CLI.jar', 'crt', fna, output_handle ]
+    return_proc = subprocess.run(run_fmt, stdout=subprocess.DEVNULL)
+    errcode = return_proc.returncode
+    if errcode > 0:
+        print(return_proc)
+        raise RuntimeError('Something went wrong with CRISPR finder for file %s'
+                % fna)
+    with open(output_handle) as out:
+        for line in out:
+            if re.match("CRISPR [0-9]", line):
+                result = True
+                break
+            if re.match("No CRISPR elements were found", line):
+                result = False
+                break
+    return output_handle, result
 
 def main():
     parser = argparse.ArgumentParser(description="""For a given set of genomes
