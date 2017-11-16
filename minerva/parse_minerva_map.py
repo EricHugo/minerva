@@ -8,12 +8,12 @@ import os
 
 
 class parseMapFile():
-    def __init__(self, map_file, query_column, query_selection, request="gene_path"):
+    def __init__(self, map_file, query_column, query_selection, request=["gene_path"]):
         self.map_file = map_file
         self.query_column = query_column
         self.query_selection = query_selection
-        print(self.query_selection)
-        print(self.query_column)
+        #print(self.query_selection)
+        #print(self.query_column)
         if len(self.query_selection) is not len(self.query_column):
             raise AttributeError("Number of queries must be equal to number of \
                     columns")
