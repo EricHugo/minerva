@@ -22,6 +22,37 @@ except ImportError:
 
 matplotlib.style.use('ggplot')
 
+def gather_minerva_data(minerva_table, search_lists, gather_negatives=False):
+    all_found_list = []
+    selectors = []
+    print(search_lists)
+    # extract list of matches based on all given columns and queries per given 
+    # column
+    for search_list in search_lists:
+        found_dict = defaultdict(list)
+        cprint(search_list, "red")
+        query_list = [ query.split(' ') for query in search_list ]
+        print(query_list[2])
+        found_list = [ found for found in parseMapFile(minerva_table, 
+            query_list[0], query_list[1], query_list[2]) ]
+        print(found_list)
+        found_dict[query_list[1][-1]].append(found_list)
+        all_found_list.append(found_dict)
+        selectors.append(query_list[1][0])
+        print(selectors)
+    # extract all results, assuming it matches index 1+, to get a total possible
+    #print(all_found_list)
+    # specify last index of index 1 as the name for the particular list
+    # find the primary selector of the query
+    # if there are more selectors, grab the last selector and return
+    try:
+        secondary_selector = query_list[0][-1]
+    except IndexError:
+        secondary_selector = None
+    #print(found_dict)
+    print(secondary_selector)
+    return all_found_list, selectors, secondary_selector
+
 def _worker(minerva_table, search_set):
     found_dict = defaultdict(list)
     # split each section by space, treat as queries
@@ -117,13 +148,40 @@ def create_frequency_summary(found_v_total_set, selectors, secondary_title):
     plt.show()
     return
 
-def create_residual_summary(found_v_total_set, selectors, secondary_title):
+def create_residual_summary(minera_table, search_sets):
     df = pd.DataFrame()
-    for selector, found_v_total in zip(selectors, found_v_total_set):
-        print(selector)
-        pass
+    search_lists = []
+    print(search_sets)
+    # 
+    all_found_matches, selectors, secondary_selector = gather_minerva_data(
+            minera_table, search_sets)
+    x, y = search_sets[0][2].split(' ')
+    for selector, found_match in zip(selectors, all_found_matches):
+        data = {}
+        found_all = [ found[0] for name, found in found_match.items() ]
+        labels =  [ name for name, found in found_match.items() ] 
+        print(found_all)
+        # necessary because nested list
+        for found, label in zip(found_all, labels):
+            print(label)
+            x_numbers = [ num[0] for num in found ] 
+            y_numbers = [ num[1] for num in found ] 
+            second_sel = [ label for i in range(len(x_numbers)) ]
+            prim_sel = [ selector for i in range(len(x_numbers)) ]
+            data[x] = x_numbers
+            data[y] = y_numbers
+            #data[secondary_selector] = second_sel
+            data["Selector"] = prim_sel
+            print(data)
+            #print(found_numbers) 
+            #print(label)
+            df_new = pd.DataFrame(data)
+            df = df.append(df_new, ignore_index=True)
+    print(df)
+    print(secondary_selector)
+    pp = sns.pairplot(data=df, x_vars=x, y_vars=y, hue="Selector" ) 
+    plt.show()
     return 
-   
 
 def main():
     parser = argparse.ArgumentParser(description="""Takes result table from
@@ -144,6 +202,11 @@ def main():
 
     args = parser.parse_args()
     
+    with open(args.file) as queries:
+        search_sets = [ search_set.strip().split('\t') for search_set in queries ]
+    create_residual_summary(args.minervaTable, search_sets)
+    sys.exit()
+
     if args.file:
         with open(args.file) as queries:
             found_series = defaultdict(list)
@@ -167,7 +230,6 @@ def main():
             print(len(found_series_set))
     #create_stacked_summary(found_series_set, secondary_selection)
     #create_frequency_summary(found_series_set, selector_set, secondary_selection)
-    create_residual_summary(found_series_set, selector_set, secondary_selection)
 
 if __name__ == "__main__":
     main()
