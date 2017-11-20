@@ -8,33 +8,48 @@ import os
 
 
 class parseMapFile():
-    def __init__(self, map_file, query_column, query_selection, request=["gene_path"]):
+    """The minerva database can be parsed using this module. Based on matching 
+    regex patterns in specified column it will return the contents of the 
+    requested column, by default it returns the path to the extracted gene 
+    file.
+
+    It is also capable of matching several queries in different columns. These 
+    should be provided as lists with equal number of columns and queries.
+    
+    .. Example:  parseMapFile('minvera_db', ['match', 'CRISPR'], 
+                              ['RAYT.*', 'True'], ['name'])
+
+        This run would return the name of all genomes in minerva_db where any 
+        RAYT is in the "match" column if the CRISPR column also contains 
+        "True".
+    """
+
+    def __init__(self, map_file, query_column, queries, requests=["gene_path"], 
+                 unique=False, unique_column='name'):
         self.map_file = map_file
         self.query_column = query_column
-        self.query_selection = query_selection
-        #print(self.query_selection)
+        self.queries = queries
+        self.unique = unique
+        #print(self.queries)
         #print(self.query_column)
-        if len(self.query_selection) is not len(self.query_column):
+        if len(self.queries) is not len(self.query_column):
             raise AttributeError("Number of queries must be equal to number of \
                     columns")
         gene_files = open(self.map_file, 'r+b')
         self.gene_mem = mmap.mmap(gene_files.fileno(), 0, prot=mmap.PROT_READ)
-        headers = str(self.gene_mem.readline(), "utf-8").split('\t')
-        self.request = request
-        self.col = []
-        self.req_col = []
-        for q in self.query_column:
+        self.headers = str(self.gene_mem.readline(), "utf-8").split('\t')
+        self.requests = requests
+        self.col = [ col for col in self.find_column_num(self.query_column) ]
+        self.req_col = [col for col in self.find_column_num(self.requests) ]
+        if self.unique:
+            self.uniq_col = [ col for col in self.find_column_num(unique_column) ]
+    
+    def find_column_num(self, column_names):
+        for name in column_names:
             i = 0
-            for header in headers:
-                if header.lower() == q.lower():
-                    self.col.append(i)
-                    break
-                i += 1
-        for r in self.request:
-            i = 0
-            for header in headers:
-                if header.lower() == r.lower():
-                    self.req_col.append(i)
+            for header in self.headers:
+                if header.lower() == name.lower():
+                    yield i
                     break
                 i += 1
 
@@ -49,7 +64,7 @@ class parseMapFile():
         column"""
         for mapping in iter(self.gene_mem.readline, bytes()):
             mapping = str(mapping, "utf-8").split('\t')
-            for sel, col in zip(self.query_selection, self.col):
+            for sel, col in zip(self.queries, self.col):
                 #print("match %s in %s" % (sel, col))
                 if not re.fullmatch(sel, mapping[col], re.IGNORECASE):
                     pass_ = False
