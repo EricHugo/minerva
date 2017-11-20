@@ -3,6 +3,7 @@
 from __future__ import print_function
 from matplotlib import pyplot as plt
 from collections import defaultdict, OrderedDict
+from itertools import chain
 from termcolor import cprint
 import pandas as pd
 import seaborn as sns
@@ -34,7 +35,8 @@ def gather_minerva_data(minerva_table, search_lists, gather_negatives=False):
         query_list = [ query.split(' ') for query in search_list ]
         print(query_list[2])
         found_list = [ found for found in parseMapFile(minerva_table, 
-            query_list[0], query_list[1], query_list[2]) ]
+            query_list[0], query_list[1], query_list[2], unique=True, 
+            ) ]
         print(found_list)
         found_dict[query_list[1][-1]].append(found_list)
         all_found_list.append(found_dict)
@@ -45,9 +47,9 @@ def gather_minerva_data(minerva_table, search_lists, gather_negatives=False):
     # specify last index of index 1 as the name for the particular list
     # find the primary selector of the query
     # if there are more selectors, grab the last selector and return
-    try:
+    if len(query_list[0]) > 1:
         secondary_selector = query_list[0][-1]
-    except IndexError:
+    else:
         secondary_selector = None
     #print(found_dict)
     print(secondary_selector)
@@ -94,8 +96,8 @@ def create_stacked_summary(found_v_total_set, secondary_title):
         print([ ind for ind, val in each.items() ])
     for found_v_total in found_v_total_set:
         #print(found_v_total)
-        found_no = [ len(set(found[0])) for name, found in found_v_total.items() ]
-        remaining_no = [ len(set(total[1])) - len(set(total[0])) for name, total in 
+        found_no = [ len(set(found[0])) / len(set(found[1])) for name, found in found_v_total.items() ]
+        remaining_no = [ (len(set(total[1])) - len(set(total[0]))) / len(set(total[1])) for name, total in 
                 found_v_total.items() ]
         labels = [ name for name, found in found_v_total.items() ]
         ind = np.arange(len(found_v_total))
@@ -115,13 +117,12 @@ def create_stacked_summary(found_v_total_set, secondary_title):
     plt.show()
     return
 
-def create_frequency_summary(found_v_total_set, selectors, secondary_title):
+def create_frequency_summary(minerva_table, search_sets):
     # try pandas and seaborn for grouping
     df = pd.DataFrame()
-    print(selectors)
-    for each in found_v_total_set:
-        print([ ind for ind, val in each.items() ])
-    for selector, found_v_total in zip(selectors, found_v_total_set):
+    all_found_matches, selectors, secondary_selector = gather_minerva_data(
+            minerva_table, search_sets)
+    for selector, found_v_total in zip(selectors, all_found_matches):
         print(selector)
         data = {}
         # questionable whether the if clause should be included, possibly better 
@@ -132,29 +133,38 @@ def create_frequency_summary(found_v_total_set, selectors, secondary_title):
         # necessary because nested list
         for found, label in zip(found_all, labels):
             print(label)
-            found_numbers = [ found.count(num) for num in set(found) ] 
-            second_sel = [ label for i in range(len(found_numbers)) ]
+            print(found)
+            found_flat = list(chain(*found))
+            try:
+                found_numbers = [ float(num) for num in found_flat ]
+            except ValueError:
+                found_numbers = [ found_flat.count(num) for num in set(found_flat) ] 
+            if secondary_selector:
+                second_sel = [ label for i in range(len(found_numbers)) ]
+                data[secondary_selector] = second_sel
             prim_sel = [ selector for i in range(len(found_numbers)) ]
             data["values"] = found_numbers
-            data[secondary_title] = second_sel
             data["Selector"] = prim_sel
             #print(found_numbers) 
             #print(label)
             df_new = pd.DataFrame(data)
             df = df.append(df_new, ignore_index=True)
     print(df)
-    print(secondary_title)
-    bp = sns.boxplot(x='Selector',y='values',data=df,hue=secondary_title, width=0.7) 
+    print(secondary_selector)
+    if secondary_selector:
+        bp = sns.boxplot(x='Selector',y='values',data=df,hue=secondary_selector, width=0.7)
+    else:
+        bp = sns.boxplot(x='Selector',y='values',data=df, width=0.7)
     plt.show()
     return
 
-def create_residual_summary(minera_table, search_sets):
+def create_residual_summary(minerva_table, search_sets):
     df = pd.DataFrame()
     search_lists = []
     print(search_sets)
     # 
     all_found_matches, selectors, secondary_selector = gather_minerva_data(
-            minera_table, search_sets)
+            minerva_table, search_sets)
     x, y = search_sets[0][2].split(' ')
     for selector, found_match in zip(selectors, all_found_matches):
         data = {}
@@ -164,13 +174,13 @@ def create_residual_summary(minera_table, search_sets):
         # necessary because nested list
         for found, label in zip(found_all, labels):
             print(label)
-            x_numbers = [ num[0] for num in found ] 
-            y_numbers = [ num[1] for num in found ] 
+            x_numbers = [ float(num[0]) for num in found ] 
+            y_numbers = [ float(num[1]) for num in found ] 
             second_sel = [ label for i in range(len(x_numbers)) ]
             prim_sel = [ selector for i in range(len(x_numbers)) ]
             data[x] = x_numbers
             data[y] = y_numbers
-            #data[secondary_selector] = second_sel
+            data[secondary_selector] = second_sel
             data["Selector"] = prim_sel
             print(data)
             #print(found_numbers) 
@@ -179,7 +189,10 @@ def create_residual_summary(minera_table, search_sets):
             df = df.append(df_new, ignore_index=True)
     print(df)
     print(secondary_selector)
-    pp = sns.pairplot(data=df, x_vars=x, y_vars=y, hue="Selector" ) 
+    if secondary_selector:
+        pp = sns.pairplot(data=df, x_vars=x, y_vars=y, hue=secondary_selector, kind='reg') 
+    else:
+        pp = sns.pairplot(data=df, x_vars=x, y_vars=y, kind='reg') 
     plt.show()
     return 
 
@@ -195,41 +208,64 @@ def main():
     help="""Columns to be searched through for specified queries. Order sensitive""")
     parser.add_argument("-r", "--request", required=False, nargs='*', help="""
     Column of matched to output""")
+    parser.add_argument("--pairplot", action='store_true', help="""Request that the 
+    queries be summarised in a pairplot. This requires two magnitudes to be 
+    requested.""")
+    parser.add_argument("--stacked", action='store_true', help="""Request that the 
+    queries be summarised in a stackedplot. Useful for comparing numbers of 
+    taxa matching a query vs total.""")
+    parser.add_argument("--boxplot", action='store_true', help="""Request that the 
+    queries be summarised in a boxplot. Will summarise number the spread of 
+    numbers of matching..........""")
+    parser.add_argument("--normalize", action='store_true', help="""Attempts to 
+    normalize data plotted.""")
     parser.add_argument("-f", "--file", required=False, help="""File in which 
     mutiple seperate queries and columns summaries are requested. Structured with 
     seperate queries with space, queries and columns seperated by tab, and 
     seperated searches by newline.""")
 
     args = parser.parse_args()
-    
-    with open(args.file) as queries:
-        search_sets = [ search_set.strip().split('\t') for search_set in queries ]
-    create_residual_summary(args.minervaTable, search_sets)
-    sys.exit()
 
-    if args.file:
+    if args.pairplot:
         with open(args.file) as queries:
-            found_series = defaultdict(list)
-            found_series_set = []
-            selector_set = []
-            for each in queries:
-                found_set, selector, secondary_selection = _worker(args.minervaTable, 
-                        each.strip().split('\t'))
-                print(secondary_selection)
-                print(selector)
-                if selector not in selector_set and selector_set:
-                    cprint("appending", "red")
-                    found_series_set.append(found_series)
-                    found_series = defaultdict(list)
-                    selector_set.append(selector)
-                elif not selector_set:
-                    selector_set.append(selector)
-                # merge dicts
-                found_series = {**found_series, **found_set}
-            found_series_set.append(found_series)
-            print(len(found_series_set))
-    #create_stacked_summary(found_series_set, secondary_selection)
-    #create_frequency_summary(found_series_set, selector_set, secondary_selection)
+            search_sets = [ search_set.strip().split('\t') for search_set in queries ]
+        create_residual_summary(args.minervaTable, search_sets)
+        sys.exit()
+
+    if args.boxplot:
+        with open(args.file) as queries:
+            search_sets = [ search_set.strip().split('\t') for search_set in queries ]
+        create_frequency_summary(args.minervaTable, search_sets)
+        sys.exit()
+
+
+    # Garbage temp code below
+    if args.stacked or args.boxplot:
+        if args.file:
+            with open(args.file) as queries:
+                found_series = defaultdict(list)
+                found_series_set = []
+                selector_set = []
+                for each in queries:
+                    found_set, selector, secondary_selection = _worker(args.minervaTable, 
+                            each.strip().split('\t'))
+                    print(secondary_selection)
+                    print(selector)
+                    if selector not in selector_set and selector_set:
+                        cprint("appending", "red")
+                        found_series_set.append(found_series)
+                        found_series = defaultdict(list)
+                        selector_set.append(selector)
+                    elif not selector_set:
+                        selector_set.append(selector)
+                    # merge dicts
+                    found_series = {**found_series, **found_set}
+                found_series_set.append(found_series)
+                print(len(found_series_set))
+        if args.stacked:
+            create_stacked_summary(found_series_set, secondary_selection)
+        else:
+            create_frequency_summary(found_series_set, selector_set, secondary_selection)
 
 if __name__ == "__main__":
     main()
