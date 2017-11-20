@@ -25,7 +25,7 @@ class parseMapFile():
     """
 
     def __init__(self, map_file, query_column, queries, requests=["gene_path"], 
-                 unique=False, unique_column='name'):
+                 unique=False, unique_column=['name']):
         self.map_file = map_file
         self.query_column = query_column
         self.queries = queries
@@ -42,7 +42,8 @@ class parseMapFile():
         self.col = [ col for col in self.find_column_num(self.query_column) ]
         self.req_col = [col for col in self.find_column_num(self.requests) ]
         if self.unique:
-            self.uniq_col = [ col for col in self.find_column_num(unique_column) ]
+            self.uniq_cols = [ col for col in self.find_column_num(unique_column) ]
+        print(self.uniq_cols)
     
     def find_column_num(self, column_names):
         for name in column_names:
@@ -62,19 +63,49 @@ class parseMapFile():
     def gene_paths(self):
         """Extracts and outputs iterable of all gene pathes matching query in 
         column"""
+        unique_seen = set()
         for mapping in iter(self.gene_mem.readline, bytes()):
             mapping = str(mapping, "utf-8").split('\t')
-            for sel, col in zip(self.queries, self.col):
-                #print("match %s in %s" % (sel, col))
-                if not re.fullmatch(sel, mapping[col], re.IGNORECASE):
-                    pass_ = False
-                    break
-                #print("found %s in %s" % (sel, mapping[col]))
-                pass_ = True
+            if self.unique:
+                uniq, unique_seen = self.check_uniq(mapping, unique_seen)
+            else:
+                uniq = True
+            if not uniq:
+                continue
+            #print(unique_seen)
+            pass_ = self.find_match(mapping)
             if pass_:
                 request_list = [ mapping[r_col] for r_col in self.req_col ]
                 return request_list
         self.gene_mem.seek(0)
         raise StopIteration
+
+    def find_match(self, line):
+        for sel, col in zip(self.queries, self.col):
+            #print("match %s in %s" % (sel, col))
+            if not re.fullmatch(sel, line[col], re.IGNORECASE):
+                pass_ = False
+                break
+            #print("found %s in %s" % (sel, mapping[col]))
+            pass_ = True
+        return pass_
+
+    def check_uniq(self, line, unique_seen):
+        """Check that content of line in unique_columns have not previously
+        been seen."""
+        for uniq_col in self.uniq_cols:
+            if line[uniq_col] in unique_seen:
+                uniq = False
+                break
+            print(line[uniq_col])
+            uniq = True
+        # add to unique_seen only if found unique on all items (uniq=true)
+        if uniq:
+            for uniq_col in self.uniq_cols:
+                unique_seen.add(line[uniq_col])
+        return uniq, unique_seen
+
+
+
 
 
