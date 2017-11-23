@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
 from __future__ import print_function
+from termcolor import cprint
 import sys
 import mmap
 import re
@@ -43,7 +44,7 @@ class parseMapFile():
         self.req_col = [col for col in self.find_column_num(self.requests) ]
         if self.unique:
             self.uniq_cols = [ col for col in self.find_column_num(unique_column) ]
-        print(self.uniq_cols)
+            self.unique_seen = set()
     
     def find_column_num(self, column_names):
         for name in column_names:
@@ -63,11 +64,10 @@ class parseMapFile():
     def gene_paths(self):
         """Extracts and outputs iterable of all gene pathes matching query in 
         column"""
-        unique_seen = set()
         for mapping in iter(self.gene_mem.readline, bytes()):
             mapping = str(mapping, "utf-8").split('\t')
             if self.unique:
-                uniq, unique_seen = self.check_uniq(mapping, unique_seen)
+                uniq = self.check_uniq(mapping)
             else:
                 uniq = True
             if not uniq:
@@ -90,21 +90,20 @@ class parseMapFile():
             pass_ = True
         return pass_
 
-    def check_uniq(self, line, unique_seen):
+    def check_uniq(self, line):
         """Check that content of line in unique_columns have not previously
         been seen."""
         for uniq_col in self.uniq_cols:
-            if line[uniq_col] in unique_seen:
+            if line[uniq_col] in self.unique_seen:
                 uniq = False
                 break
-            print(line[uniq_col])
             uniq = True
         # add to unique_seen only if found unique on all items (uniq=true)
         if uniq:
             for uniq_col in self.uniq_cols:
-                unique_seen.add(line[uniq_col])
-        return uniq, unique_seen
-
+                self.unique_seen.add(line[uniq_col])
+                #print(self.unique_seen)
+        return uniq
 
 
 
