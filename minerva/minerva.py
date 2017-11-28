@@ -40,7 +40,8 @@ except ImportError:
     from parse_minerva_map import parseMapFile
 
 
-def _worker(fasta, seqType, name, hmm, q, gen_directory, evalue=1e-20, outfile=None):
+def _worker(fasta, seqType, name, hmm, q, gen_directory, evalue=1e-20, 
+            crispr=False, outfile=None):
     tax = parseTaxonomy()
     if seqType == "faa":
         faa = fasta
@@ -60,7 +61,10 @@ def _worker(fasta, seqType, name, hmm, q, gen_directory, evalue=1e-20, outfile=N
             os.remove(faa)
             faa = micomplete.create_proteome(fna, re.sub('\/', '', name))
         # find CRISPRs
-        c_out, crispr_bool = find_CRISPRs(fna, re.sub('\/', '', name))
+        if crispr:
+            c_out, crispr_bool = find_CRISPRs(fna, re.sub('\/', '', name))
+        else:
+            c_out, crispr_bool = "-", "-"
         # grab size and GC stats
         pseqs = parseSeqStats(fasta, name, seqType)
         seqLength, alllengths, GC = pseqs.get_length()
@@ -76,18 +80,19 @@ def _worker(fasta, seqType, name, hmm, q, gen_directory, evalue=1e-20, outfile=N
     baseName = os.path.basename(fasta).split('.')[0]
     if not name:
         name = baseName
-    gene_matches = get_RAYTs(faa, name, hmm, evalue)
+    gene_matches = get_matches(faa, name, hmm, evalue)
     for gene, match in gene_matches.items():
         gene_matches[gene].append(extract_protein(faa, gene))
     # make an entry of empty results  
     if not gene_matches:
         gene_matches['-'].append(['-', '-'])
     compile_results(name, gene_matches, taxid, taxonomy, fasta, seqType, faa, q, 
-            crispr_bool, c_out, seqLength, GC, gen_directory )
+            seqLength, GC, gen_directory=gen_directory, crispr_bool=crispr_bool,
+            c_out=c_out)
     return 
 
 def compile_results(name, gene_matches, taxid, taxonomy, fasta, seqType, faa, q,
-        crispr_bool, c_out, seqLength, GC, gen_directory="protein_matches"):
+        seqLength, GC, gen_directory="protein_matches", crispr_bool="-", c_out="-"):
     for gene, match in gene_matches.items():
         #print(match)
         result = {}
@@ -166,22 +171,22 @@ def open_stdout(outfile):
         if handle is not sys.stdout:
             handle.close()
 
-def get_RAYTs(faa, name, hmm, evalue=1e-20):
+def get_matches(faa, name, hmm, evalue=1e-20):
     """Retrieves markers in hmm from the given proteome"""
     comp = calcCompleteness(faa, re.sub('\/', '', name), hmm, evalue)
-    foundRAYTs, dupRAYTs, totl = comp.get_completeness()
-    print(name + ': ' + str(foundRAYTs) )
-    # ensure unique, best RAYT match for each gene
-    # but allow infinite gene matches for each RAYT
+    foundmatches, dupmatches, totl = comp.get_completeness()
+    print(name + ': ' + str(foundmatches) )
+    # ensure unique, best match for each hmm
+    # but allow infinite gene matches for each hmm 
     gene_matches = defaultdict(list)
     try:
-        for RAYT, match in foundRAYTs.items():
+        for matche, match in foundmatches.items():
             for gene, evalue in match:
                 if gene not in gene_matches:
-                    gene_matches[gene].append([RAYT, evalue])
+                    gene_matches[gene].append([matche, evalue])
                 elif float(evalue) < float(gene_matches[gene][0][1]):
                     gene_matches[gene].pop()
-                    gene_matches[gene].append([RAYT, evalue])
+                    gene_matches[gene].append([matche, evalue])
     except AttributeError:
         print(name + " threw AttributeError")
     return gene_matches
@@ -296,6 +301,9 @@ def main():
     parser.add_argument("--glist", required=False, help="""Genome list in csv 
             format from the NCBI genome browser, required with '--taxa' 
                         argument""")
+    parser.add_argument("--crispr", required=False, action='store_true',
+            help="""Flag to attempt to assign CRISPR systems within examined 
+            genomes using CRISPR Recognition Tool (CRT).""")
     parser.add_argument("--summary", required=False, help="""Attempts to provide 
             a summary of pre-exist results file. Provide a file of column(s) to 
             be summarised and optionally a selection column with a string to 
@@ -331,7 +339,7 @@ def main():
         if len(i) == 2:
             i.append(None)
         job = pool.apply_async(_worker, (i[0], i[1], i[2], args.hmms, q, 
-            args.gendir))
+            args.gendir), {"crispr":args.crispr})
         jobs.append(job)
     # get() all processes to catch errors
     for job in jobs:
