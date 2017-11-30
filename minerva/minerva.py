@@ -41,7 +41,7 @@ except ImportError:
     from parse_minerva_map import parseMapFile
     from find_gene_neighbourhood import findGeneNeighbourhood
 
-ILLEGAL_CHARACTERS = "|><()[]{}=*"
+ILLEGAL_CHARACTERS = "|><()[]{}=*/"
 
 def _worker(fasta, seqType, raw_name, hmm, q, gen_directory, evalue=1e-20, 
             crispr=False, outfile=None):
@@ -53,11 +53,13 @@ def _worker(fasta, seqType, raw_name, hmm, q, gen_directory, evalue=1e-20,
         faa = micomplete.create_proteome(fasta)
         return #not supported for now
     elif re.match("(gb.?.?)|genbank", seqType):
-        raw_name = get_gbk_feature(fasta, 'organism')
+        raw_name = get_gbk_feature(fasta, 'source', 'organism')
         print("Working on %s" % raw_name)
         name = raw_name
+        # remove illegal characters
         for i in ILLEGAL_CHARACTERS:
             name = re.sub(re.escape(i), '', name)
+        # also swap spaces for underscores
         name = re.sub(' ', '_', name)
         faa = micomplete.extract_gbk_trans(fasta, name + '.faa')
         fna = get_contigs_gbk(fasta, re.sub('\/', '', name))
@@ -90,7 +92,10 @@ def _worker(fasta, seqType, raw_name, hmm, q, gen_directory, evalue=1e-20,
     if gene_matches:
         neighbour_find = findGeneNeighbourhood(faa, name, seqLength, gene_matches)
         neighbours = neighbour_find.find_minimum_distance()
+        # get product names if possible
         for gene, match in gene_matches.items():
+            neighbours[gene].append(get_gbk_feature(fasta, 'CDS', 'product', neighbours[gene][0][0]))
+            neighbours[gene].append(get_gbk_feature(fasta, 'CDS', 'product', neighbours[gene][1][0]))
             gene_matches[gene].append(extract_protein(faa, gene))
             gene_matches[gene].append(neighbours[gene])
     else:
@@ -130,6 +135,8 @@ def compile_results(name, gene_matches, taxid, taxonomy, fasta, seqType, faa, q,
             result['reverse_neighbour'] = match[2][1][0]
             result['forward_distance'] = str(match[2][0][1])
             result['reverse_distance'] = str(match[2][1][1])
+            result['forward_product'] = match[2][2]
+            result['reverse_product'] = match[2][3]
         except IndexError:
             pass
         # put result dict in queue for listener
@@ -174,7 +181,7 @@ def _listener(q, headers, outfile='-', gen_directory="protein_matches"):
 
 @contextmanager
 def open_stdout(outfile):
-    """Function dynamically allows printing to file or stdout when used as open 
+    """Generator dynamically allows printing to file or stdout when used as open 
     with 'with'. No filename or '-' results in stdout, any other name will be
     used as filename to be written"""
     if outfile and outfile != '-':
@@ -211,20 +218,24 @@ def get_matches(faa, name, hmm, evalue=1e-20):
 def extract_protein(faa, gene_tag):
     """Extract the protein sequences from a given proteome given a dict of 
     gene names"""
-    #rayt_gene_list = [ gene for gene, rayt in gene_RAYT.items() ]
     protein_list = [ seq for seq in SeqIO.parse(faa, "fasta") if seq.id in
             gene_tag ]
     #print(protein_list)
     return protein_list
 
-def get_gbk_feature(handle, feature_type):
+def get_gbk_feature(handle, feature_type, qualifier, selector=None):
     """Get specified organism feature from gbk file"""
     input_handle = open(handle, mode='r')
+    value = None
     for record in SeqIO.parse(input_handle, "genbank"):
         for feature in record.features:
-            if feature.type == "source":
-                value = ''.join(feature.qualifiers[feature_type])
-                break
+            if feature.type == feature_type:
+                if not selector:
+                    value = ''.join(feature.qualifiers[qualifier])
+                    break
+                elif ''.join(feature.qualifiers['locus_tag']) == selector:
+                    value = ''.join(feature.qualifiers[qualifier])
+                    break
     return value
 
 def get_contigs_gbk(gbk, name):
@@ -241,30 +252,32 @@ def get_contigs_gbk(gbk, name):
 
 def init_results_table(q, outfile=None):
     headers = (
-            'Match',
-            'Gene',
-            'Evalue',
-            'Name',
-            'TaxID',
-            'Superkingdom',
-            'Phylum',
-            'Class',
-            'Order',
-            'Family',
-            'Genus',
-            'Species',
-            'Gene_path',
-            'Genome_path',
-            'Proteome_path',
-            'CRISPR',
-            'CRISPR_path',
-            'Genome_length',
-            'GC-content',
-            'Forward_neighbour',
-            'Reverse_neighbour',
-            'Forward_distance',
-            'Reverse_distance',
-            )
+                'Match',
+                'Gene',
+                'Evalue',
+                'Name',
+                'TaxID',
+                'Superkingdom',
+                'Phylum',
+                'Class',
+                'Order',
+                'Family',
+                'Genus',
+                'Species',
+                'Gene_path',
+                'Genome_path',
+                'Proteome_path',
+                'CRISPR',
+                'CRISPR_path',
+                'Genome_length',
+                'GC-content',
+                'Forward_neighbour',
+                'Forward_distance',
+                'Forward_product',
+                'Reverse_neighbour',
+                'Reverse_distance',
+                'Reverse_product',
+                )
     if outfile and not outfile == '-':
         headers = tuple(headers)
         q.put(headers)
