@@ -8,6 +8,7 @@ from micomplete import parseSeqStats
 from contextlib import contextmanager
 from distutils import spawn
 from collections import defaultdict
+from itertools import zip_longest
 from ftplib import FTP
 from datetime import datetime
 from termcolor import cprint
@@ -34,13 +35,15 @@ spec.loader.exec_module(micomplete)
 # import dev minerva modules
 sys.path.append('/home/hugoson/git/minerva')
 try:
-    from minerva import parseTaxonomy, parseMapFile
+    from minerva import parseTaxonomy, parseMapFile, findGeneNeighbourhood
 except ImportError:
     from parse_taxonomy import parseTaxonomy
     from parse_minerva_map import parseMapFile
+    from find_gene_neighbourhood import findGeneNeighbourhood
 
+ILLEGAL_CHARACTERS = "|><()[]{}=*"
 
-def _worker(fasta, seqType, name, hmm, q, gen_directory, evalue=1e-20, 
+def _worker(fasta, seqType, raw_name, hmm, q, gen_directory, evalue=1e-20, 
             crispr=False, outfile=None):
     tax = parseTaxonomy()
     if seqType == "faa":
@@ -50,10 +53,13 @@ def _worker(fasta, seqType, name, hmm, q, gen_directory, evalue=1e-20,
         faa = micomplete.create_proteome(fasta)
         return #not supported for now
     elif re.match("(gb.?.?)|genbank", seqType):
-        name = get_gbk_feature(fasta, 'organism')
-        print("Working on %s" % name)
-        faa = micomplete.extract_gbk_trans(fasta, re.sub('\)|\(|\{|\}|\[|\]|\/|\/', 
-            '', name) + '.faa')
+        raw_name = get_gbk_feature(fasta, 'organism')
+        print("Working on %s" % raw_name)
+        name = raw_name
+        for i in ILLEGAL_CHARACTERS:
+            name = re.sub(re.escape(i), '', name)
+        name = re.sub(' ', '_', name)
+        faa = micomplete.extract_gbk_trans(fasta, name + '.faa')
         fna = get_contigs_gbk(fasta, re.sub('\/', '', name))
         # if there is no translation to extract, get contigs and use prodigal
         # find ORFs instead
@@ -62,13 +68,13 @@ def _worker(fasta, seqType, name, hmm, q, gen_directory, evalue=1e-20,
             faa = micomplete.create_proteome(fna, re.sub('\/', '', name))
         # find CRISPRs
         if crispr:
-            c_out, crispr_bool = find_CRISPRs(fna, re.sub('\/', '', name))
+            c_out, c_bool = find_CRISPRs(fna, re.sub('\/', '', name))
         else:
-            c_out, crispr_bool = "-", "-"
+            c_out, c_bool = "-", "-"
         # grab size and GC stats
         pseqs = parseSeqStats(fasta, name, seqType)
-        seqLength, alllengths, GC = pseqs.get_length()
-        taxid = tax.find_taxid(name)
+        seqLength, _, GC = pseqs.get_length()
+        taxid = tax.find_taxid(raw_name)
         if taxid:
             lineage = tax.parse_taxa(taxid)
             taxonomy = { rank: tax.find_scientific_name(taxid) for rank, taxid 
@@ -81,20 +87,24 @@ def _worker(fasta, seqType, name, hmm, q, gen_directory, evalue=1e-20,
     if not name:
         name = baseName
     gene_matches = get_matches(faa, name, hmm, evalue)
-    for gene, match in gene_matches.items():
-        gene_matches[gene].append(extract_protein(faa, gene))
-    # make an entry of empty results  
-    if not gene_matches:
+    if gene_matches:
+        neighbour_find = findGeneNeighbourhood(faa, name, seqLength, gene_matches)
+        neighbours = neighbour_find.find_minimum_distance()
+        for gene, match in gene_matches.items():
+            gene_matches[gene].append(extract_protein(faa, gene))
+            gene_matches[gene].append(neighbours[gene])
+    else:
         gene_matches['-'].append(['-', '-'])
+    # make an entry of empty results  
     compile_results(name, gene_matches, taxid, taxonomy, fasta, seqType, faa, q, 
-            seqLength, GC, gen_directory=gen_directory, crispr_bool=crispr_bool,
+            seqLength, GC, gen_directory=gen_directory, c_bool=c_bool,
             c_out=c_out)
     return 
 
 def compile_results(name, gene_matches, taxid, taxonomy, fasta, seqType, faa, q,
-        seqLength, GC, gen_directory="protein_matches", crispr_bool="-", c_out="-"):
+        seqLength, GC, gen_directory="protein_matches", c_bool="-", c_out="-"):
     for gene, match in gene_matches.items():
-        #print(match)
+        print(match)
         result = {}
         result['name'] = name
         result['match'] = match[0][0]
@@ -111,10 +121,17 @@ def compile_results(name, gene_matches, taxid, taxonomy, fasta, seqType, faa, q,
             pass
         result['genome_path'] = os.path.abspath(fasta)
         result['proteome_path'] = os.path.abspath(faa)
-        result['crispr'] = str(crispr_bool)
+        result['crispr'] = str(c_bool)
         result['crispr_path'] = c_out
         result['genome_length'] = str(seqLength)
         result['gc-content'] = str(GC)
+        try:
+            result['forward_neighbour'] = match[2][0][0]
+            result['reverse_neighbour'] = match[2][1][0]
+            result['forward_distance'] = str(match[2][0][1])
+            result['reverse_distance'] = str(match[2][1][1])
+        except IndexError:
+            pass
         # put result dict in queue for listener
         q.put(result)
         # also put the seq-object
@@ -135,7 +152,7 @@ def _listener(q, headers, outfile='-', gen_directory="protein_matches"):
                 for header in headers:
                     try:
                         handle.write(out_object[header.lower()] + '\t')
-                    except KeyError:
+                    except (KeyError, TypeError):
                         handle.write('-' + '\t')
                 handle.write('\n')
             if type(out_object) is list:
@@ -223,7 +240,7 @@ def get_contigs_gbk(gbk, name):
     return name
 
 def init_results_table(q, outfile=None):
-    headers = [
+    headers = (
             'Match',
             'Gene',
             'Evalue',
@@ -242,8 +259,12 @@ def init_results_table(q, outfile=None):
             'CRISPR',
             'CRISPR_path',
             'Genome_length',
-            'GC-content'
-            ]
+            'GC-content',
+            'Forward_neighbour',
+            'Reverse_neighbour',
+            'Forward_distance',
+            'Reverse_distance',
+            )
     if outfile and not outfile == '-':
         headers = tuple(headers)
         q.put(headers)
