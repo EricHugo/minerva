@@ -48,8 +48,7 @@ def gather_minerva_data(minerva_table, search_lists, gather_negatives=False,
         query_list = [ query.split(' ') for query in search_list ]
         found_list = [ found for found in parseMapFile(minerva_table, 
                         query_list[0], query_list[1], query_list[2], 
-                        unique=unique_flag)
-                     ]
+                        unique=unique_flag) ]
         #print(found_list)
         found_dict[query_list[1][-1]].append(found_list)
         all_found_list.append(found_dict)
@@ -113,10 +112,12 @@ def create_stacked_summary(found_v_total_set, secondary_title):
     # here loop all different results dicts within the set
     for found_v_total in found_v_total_set:
         # determine number of positives
-        found_no = [ len(set(found[0])) / len(set(found[1])) for name, found in found_v_total.items() ]
+        found_no = [ len(set(found[0])) / len(set(found[1])) for name, found 
+                     in found_v_total.items() ]
         # determine length of the the total - positives
-        remaining_no = [ (len(set(total[1])) - len(set(total[0]))) / len(set(total[1])) for name, total in 
-                found_v_total.items() ]
+        remaining_no = [ (len(set(total[1])) - len(set(total[0]))) / 
+                         len(set(total[1])) for name, total in 
+                         found_v_total.items() ]
         labels = [ name for name, found in found_v_total.items() ]
         ind = np.arange(len(found_v_total))
         p1 = ax.bar(ind + sep, remaining_no, color='#348abd', width=width)
@@ -130,8 +131,8 @@ def create_stacked_summary(found_v_total_set, secondary_title):
         sep += width + 0.05
     # set xticks to be middle for each set, subtracts width and 0.05 to
     # compensate last increment
-    #ax.set_xticks(ind + (sep - width - 0.05) / 2)
-    #ax.set_xticklabels(labels, rotation=45, fontsize=9, ha='right')
+    ax.set_xticks(ind + (sep - width - 0.05) / 2)
+    ax.set_xticklabels(labels, rotation=45, fontsize=9, ha='right')
     plt.ylabel('Taxa')
     plt.legend((p1[0], p2[0]), ('Negative', 'Postive'))
     plt.show()
@@ -179,9 +180,10 @@ def create_frequency_summary(minerva_table, search_sets, unique=False):
     print(secondary_selector)
     if secondary_selector:
         bp = sns.boxplot(x='Selectors',y=values,data=df,hue=secondary_selector, 
-                width=0.7)
+                width=0.7, flierprops={"marker": "+"})
     else:
-        bp = sns.boxplot(x='Selectors',y=values,data=df, width=0.7)
+        bp = sns.boxplot(x='Selectors',y=values,data=df, width=0.7, 
+                flierprops={"marker": "+"}) 
     plt.show()
     return
 
@@ -197,7 +199,7 @@ def create_residual_summary(minerva_table, search_sets, unique=False):
         data = {}
         found_all = [ found[0] for name, found in found_match.items() ]
         labels =  [ name for name, found in found_match.items() ] 
-        print(found_all)
+        #print(found_all)
         # necessary because nested list
         for found, label in zip(found_all, labels):
             print(label)
@@ -205,7 +207,8 @@ def create_residual_summary(minerva_table, search_sets, unique=False):
                 x_numbers = [ float(num[0]) for num in found ] 
             except ValueError:
                 found_flat = list(chain(*found))
-                x_numbers = [ found_flat.count(num) for num in found_flat ]
+                print(len(set(found_flat)))
+                x_numbers = [ found_flat.count(num) for num in set(found_flat) ]
             y_numbers = [ float(num[1]) for num in found ] 
             second_sel = [ label for i in range(len(x_numbers)) ]
             prim_sel = [ selector for i in range(len(x_numbers)) ]
@@ -213,7 +216,7 @@ def create_residual_summary(minerva_table, search_sets, unique=False):
             data[y] = y_numbers
             data[secondary_selector] = second_sel
             data["Selector"] = prim_sel
-            print(data)
+            #print(data)
             for key, val in data.items():
                 print(key)
                 print(len(val))
@@ -285,6 +288,7 @@ def main():
                 found_series = defaultdict(list)
                 found_series_set = []
                 selector_set = []
+                prev = ""
                 for each in queries:
                     found_set, selector, secondary_selection = _worker(args.minervaTable, 
                             each.strip().split('\t'))
