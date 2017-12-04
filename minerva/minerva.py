@@ -12,6 +12,7 @@ from itertools import zip_longest
 from ftplib import FTP
 from datetime import datetime
 from termcolor import cprint
+from pathlib import Path
 import sys
 import mmap
 import re
@@ -53,16 +54,39 @@ def _worker(fasta, seqType, raw_name, hmm, q, gen_directory, evalue=1e-20,
         faa = micomplete.create_proteome(fasta)
         return #not supported for now
     elif re.match("(gb.?.?)|genbank", seqType):
-        raw_name = get_gbk_feature(fasta, 'source', 'organism')
-        print("Working on %s" % raw_name)
+        for feature in get_gbk_feature(fasta, 'features'):
+            if feature.type == "source":
+                raw_name = ''.join(feature.qualifiers['organism'])
+                break
         name = raw_name
-        # remove illegal characters
         for i in ILLEGAL_CHARACTERS:
             name = re.sub(re.escape(i), '', name)
-        # also swap spaces for underscores
         name = re.sub(' ', '_', name)
+
+        # if there is another organism with the same name, also get strain
+        # if no strain, get the db xreference
+        if Path(name + '.faa').is_file():
+            for feature in get_gbk_feature(fasta, 'features'):
+                if feature.type == "source":
+                    try:
+                        strain = ''.join(feature.qualifiers['strain'])
+                        try:
+                            strain = ''.join(strain.split(':')[1])
+                        except IndexError:
+                            pass
+                        break
+                    except KeyError:
+                        strain = ''.join(feature.qualifiers['db_xref'])
+            name = raw_name + '_' + strain
+            for i in ILLEGAL_CHARACTERS:
+                name = re.sub(re.escape(i), '', name)
+            name = re.sub(' ', '_', name)
+
+        print("Working on %s" % raw_name)
+        # remove illegal characters
+        # also swap spaces for underscores
         faa = micomplete.extract_gbk_trans(fasta, name + '.faa')
-        fna = get_contigs_gbk(fasta, re.sub('\/', '', name))
+        fna = get_contigs_gbk(fasta, re.sub('\/', '', name + '.fna'))
         # if there is no translation to extract, get contigs and use prodigal
         # find ORFs instead
         if os.stat(faa).st_size == 0:
@@ -90,12 +114,21 @@ def _worker(fasta, seqType, raw_name, hmm, q, gen_directory, evalue=1e-20,
         name = baseName
     gene_matches = get_matches(faa, name, hmm, evalue)
     if gene_matches:
-        neighbour_find = findGeneNeighbourhood(faa, name, seqLength, gene_matches)
+        neighbour_find = findGeneNeighbourhood(fasta, faa, name, seqLength, 
+                gene_matches)
         neighbours = neighbour_find.find_minimum_distance()
         # get product names if possible
         for gene, match in gene_matches.items():
-            neighbours[gene].append(get_gbk_feature(fasta, 'CDS', 'product', neighbours[gene][0][0]))
-            neighbours[gene].append(get_gbk_feature(fasta, 'CDS', 'product', neighbours[gene][1][0]))
+            for i in range(len(neighbours[gene])):
+                try:
+                    for feature in get_gbk_feature(fasta, "features"):
+                        if feature.type == 'CDS':
+                            if ''.join(feature.qualifiers['locus_tag']) == neighbours[gene][i][0]:
+                                neighbours[gene].append(''.join(
+                                    feature.qualifiers['product']))
+                                break
+                except KeyError:
+                    pass
             gene_matches[gene].append(extract_protein(faa, gene))
             gene_matches[gene].append(neighbours[gene])
     else:
@@ -141,7 +174,6 @@ def compile_results(name, gene_matches, taxid, taxonomy, fasta, seqType, faa, q,
             pass
         # put result dict in queue for listener
         q.put(result)
-        # also put the seq-object
     return
 
 def _listener(q, headers, outfile='-', gen_directory="protein_matches"):
@@ -197,7 +229,7 @@ def open_stdout(outfile):
 
 def get_matches(faa, name, hmm, evalue=1e-20):
     """Retrieves markers in hmm from the given proteome"""
-    comp = calcCompleteness(faa, re.sub('\/', '', name), hmm, evalue)
+    comp = micomplete.calcCompleteness(faa, re.sub('\/', '', name), hmm, evalue)
     foundmatches, dupmatches, totl = comp.get_completeness()
     print(name + ': ' + str(foundmatches) )
     # ensure unique, best match for each hmm
@@ -223,19 +255,14 @@ def extract_protein(faa, gene_tag):
     #print(protein_list)
     return protein_list
 
-def get_gbk_feature(handle, feature_type, qualifier, selector=None):
+def get_gbk_feature(handle, feature_type):
     """Get specified organism feature from gbk file"""
     input_handle = open(handle, mode='r')
     value = None
     for record in SeqIO.parse(input_handle, "genbank"):
-        for feature in record.features:
-            if feature.type == feature_type:
-                if not selector:
-                    value = ''.join(feature.qualifiers[qualifier])
-                    break
-                elif ''.join(feature.qualifiers['locus_tag']) == selector:
-                    value = ''.join(feature.qualifiers[qualifier])
-                    break
+        for feature in getattr(record, feature_type):
+            #print(feature)
+            yield feature
     return value
 
 def get_contigs_gbk(gbk, name):
@@ -361,6 +388,7 @@ def main():
 
     with open(args.fastaList) as seq_file:
         inputSeqs = [ seq.strip().split('\t') for seq in seq_file ]
+
     manager = mp.Manager()
     q = manager.Queue()
     headers = init_results_table(q, args.outfile)
