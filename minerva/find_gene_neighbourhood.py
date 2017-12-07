@@ -18,52 +18,48 @@ class findGeneNeighbourhood():
                     if re.search("^>", header))
 
     def evaluate_contig(self, match):
-        """Checks which contig any given match is on, and extracts only 
-        other CDS on the same contig. This prevents erroneous distance
-        measures"""
-        found = False
-        #print(match)
-        with open(self.sequence) as handle:
-            for record in SeqIO.parse(handle, 'genbank'):
-                for feature in record.features:
-                    if feature.type == 'source':
-                        if found:
-                            #print(self.all_contig_loci)
-                            return self.all_contig_loci
-                        self.all_contig_loci = []
-                    if feature.type == 'CDS':
-                        self.all_contig_loci.append(''.join(
-                                feature.qualifiers['locus_tag']))
-                        if match == self.all_contig_loci[-1]:
-                            found = True
-        if not found:
+        found_n = False
+        self.all_contig_loci = defaultdict(list)
+        print(match)
+        for header in self.pHeaders:
+            header = header.split(';')[0]
+            print(header)
+            header_id = header.split('#')[-1].strip()
+            print(header_id)
+            locus_tag = re.sub('>', '', header.split('#')[0].strip())
+            contig_n = re.split("=|_", header_id)[1]
+            print(contig_n)
+            self.all_contig_loci[contig_n].append(locus_tag)
+            if match == locus_tag:
+                found_n = contig_n
+        if not found_n:
             cprint("something went horribly wrong", "red")
             cprint(self.name, "red")
             cprint(self.sequence, "red")
-        return None
-
-    def gather_locations(self):
+        print(self.all_contig_loci[found_n])
+        return self.all_contig_loci[found_n]
+        
+    def gather_locations(self, hmm):
         """Gathers all locations of all genes in a dict[gene] = [[START, STOP]]
         also populates a dict for the queried genes.
         """
         self.all_locs = defaultdict(list)
-        self.hmm_locs = defaultdict(list)
-        for hmm, genes in self.matched_genes.items():
-            self.evaluate_contig(hmm)
-            for header in self.pHeaders:
-                head = re.sub('>', '', header.split('#')[0].strip())
-                #print(self.all_contig_loci)
-                if head not in self.all_contig_loci:
-                    #print("continue")
-                    continue
-                #print(head)
-                self.all_locs[head].append(list(map(int, header.split('#')[1:3])))
-                #print(hmm)
-                if re.search(re.escape(hmm)+"\s", header):
-                    #cprint("match %s and %s" % (header, hmm), "red")
-                    self.hmm_locs[hmm].append(list(map(int, 
-                        header.split('#')[1:3])))
-        ##print(self.all_locs)
+        self.hmm_locs = []
+        all_contig_loci = self.evaluate_contig(hmm)
+        for header in self.pHeaders:
+            head = re.sub('>', '', header.split('#')[0].strip())
+            #print(self.all_contig_loci)
+            if head not in all_contig_loci:
+                #print("continue")
+                continue
+            #print(head)
+            self.all_locs[head].append(list(map(int, header.split('#')[1:3])))
+            #print(hmm)
+            if re.search(re.escape(hmm)+"\s", header):
+                #cprint("match %s and %s" % (header, hmm), "red")
+                self.hmm_locs.append(list(map(int, 
+                    header.split('#')[1:3])))
+        #print(self.all_locs)
         #print(self.hmm_locs)
         return self.hmm_locs, self.all_locs
 
@@ -83,12 +79,11 @@ class findGeneNeighbourhood():
         gene with smallest positive and negative distance. Return 
         dict[hmm] = [minFloc, minRloc]
         """
-        try:
-            self.hmm_locs
-        except AttributeError:
-            self.gather_locations()
         self.min_locs = defaultdict(list)
-        for match, match_locs in self.hmm_locs.items():
+        for match, genes in self.matched_genes.items():
+            match_locs, all_locs = self.gather_locations(match)
+            #print(match_locs)
+            #print(all_locs)
             flat_match = list(chain.from_iterable(match_locs))
             # try dict comp to include gene name with calculated distance
             forward_locs = [{ head: int(loc[0] - flat_match[1]) 
