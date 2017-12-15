@@ -20,15 +20,15 @@ class findGeneNeighbourhood():
     def evaluate_contig(self, match):
         found_n = False
         self.all_contig_loci = defaultdict(list)
-        print(match)
+        #print(match)
         for header in self.pHeaders:
             header = header.split(';')[0]
-            print(header)
+            #print(header)
             header_id = header.split('#')[-1].strip()
-            print(header_id)
+            #print(header_id)
             locus_tag = re.sub('>', '', header.split('#')[0].strip())
             contig_n = re.split("=|_", header_id)[1]
-            print(contig_n)
+            #print(contig_n)
             self.all_contig_loci[contig_n].append(locus_tag)
             if match == locus_tag:
                 found_n = contig_n
@@ -36,7 +36,7 @@ class findGeneNeighbourhood():
             cprint("something went horribly wrong", "red")
             cprint(self.name, "red")
             cprint(self.sequence, "red")
-        print(self.all_contig_loci[found_n])
+        #print(self.all_contig_loci[found_n])
         return self.all_contig_loci[found_n]
         
     def gather_locations(self, hmm):

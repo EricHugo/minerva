@@ -36,13 +36,19 @@ spec.loader.exec_module(micomplete)
 # import dev minerva modules
 sys.path.append('/home/hugoson/git/minerva')
 try:
-    from minerva import parseTaxonomy, parseMapFile, findGeneNeighbourhood
+    from minerva import parseTaxonomy, parseMapFile, findGeneNeighbourhood, diamondBlast
 except ImportError:
     from parse_taxonomy import parseTaxonomy
     from parse_minerva_map import parseMapFile
     from find_gene_neighbourhood import findGeneNeighbourhood
+    from diamondblast import diamondBlast
 
 ILLEGAL_CHARACTERS = "|><()[]{}=*/"
+NEIGHBOUR_DIR = "neighbour_proteins"
+try:
+    os.mkdir(NEIGHBOUR_DIR)
+except FileExistsError:
+    pass
 
 def _worker(fasta, seqType, raw_name, hmm, q, gen_directory, evalue=1e-20, 
             crispr=False, outfile=None):
@@ -90,6 +96,7 @@ def _worker(fasta, seqType, raw_name, hmm, q, gen_directory, evalue=1e-20,
         # if there is no translation to extract, get contigs and use prodigal
         # find ORFs instead
         if os.stat(faa).st_size == 0:
+            print("prodigal")
             os.remove(faa)
             faa = micomplete.create_proteome(fna, re.sub('\/', '', name))
         # find CRISPRs
@@ -127,6 +134,14 @@ def _worker(fasta, seqType, raw_name, hmm, q, gen_directory, evalue=1e-20,
                                 neighbours[gene].append(''.join(
                                     feature.qualifiers['product']))
                                 break
+                            neighbour_faa = extract_protein(faa, neighbours[gene][i][0], write=True)
+                            # new func that takes extracted protein and diamond
+                            # against uniprot => extracts protein name
+                            blast = diamondBlast('/fast/uniprot', '_')
+                            print(neighbour_faa)
+                            blast.perform_blast(neighbour_faa, '--outfmt', '6', 'sseqid', 'evalue', 'bitscore', 'ppos', 'salltitles', evalue='1e-10')
+                            neighbours[gene].append(blast.get_protein_name())
+                            # hopefully memmap headers to speed up
                 except KeyError:
                     pass
             gene_matches[gene].append(extract_protein(faa, gene))
@@ -247,12 +262,17 @@ def get_matches(faa, name, hmm, evalue=1e-20):
         print(name + " threw AttributeError")
     return gene_matches
 
-def extract_protein(faa, gene_tag):
+def extract_protein(faa, gene_tag, write=None):
     """Extract the protein sequences from a given proteome given a dict of 
     gene names"""
     protein_list = [ seq for seq in SeqIO.parse(faa, "fasta") if seq.id in
             gene_tag ]
     #print(protein_list)
+    if write:
+        for protein in protein_list:
+            SeqIO.write(protein, NEIGHBOUR_DIR + '/' + protein.name + '.faa', 
+                    'fasta')
+            return NEIGHBOUR_DIR + '/' + protein.name + '.faa'
     return protein_list
 
 def get_gbk_feature(handle, feature_type):
@@ -265,7 +285,7 @@ def get_gbk_feature(handle, feature_type):
             yield feature
     return value
 
-def get_contigs_gbk(gbk, name):
+def get_contigs_gbk(gbk, name=None):
     """Extracts all sequences from gbk file, returns filename"""
     handle = open(gbk, mode='r')
     if not name:
