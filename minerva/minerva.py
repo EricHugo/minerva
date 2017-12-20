@@ -127,23 +127,33 @@ def _worker(fasta, seqType, raw_name, hmm, q, gen_directory, evalue=1e-20,
         # get product names if possible
         for gene, match in gene_matches.items():
             for i in range(len(neighbours[gene])):
-                try:
-                    for feature in get_gbk_feature(fasta, "features"):
-                        if feature.type == 'CDS':
-                            if ''.join(feature.qualifiers['locus_tag']) == neighbours[gene][i][0]:
-                                neighbours[gene].append(''.join(
-                                    feature.qualifiers['product']))
-                                break
-                            neighbour_faa = extract_protein(faa, neighbours[gene][i][0], write=True)
-                            # new func that takes extracted protein and diamond
-                            # against uniprot => extracts protein name
-                            blast = diamondBlast('/fast/uniprot', '_')
-                            print(neighbour_faa)
-                            blast.perform_blast(neighbour_faa, '--outfmt', '6', 'sseqid', 'evalue', 'bitscore', 'ppos', 'salltitles', evalue='1e-10')
-                            neighbours[gene].append(blast.get_protein_name())
-                            # hopefully memmap headers to speed up
-                except KeyError:
+                neighbour_product = None
+                for prod in find_gbk_product(fasta, target=neighbours[gene][i][0], 
+                        unique=True):
+                    #neighbour_product = prod
                     pass
+                if not neighbour_product:
+                    cprint(gene, "magenta")
+                    print(neighbours[gene][i][0])
+                    print(faa)
+                    neighbour_faa = extract_protein(faa, 
+                            neighbours[gene][i][0], write=True)
+                    # new func that takes extracted protein and diamond
+                    # against uniprot => extracts protein name
+                    blast = diamondBlast('/fast/uniprot', '_')
+                    print(neighbour_faa)
+                    try:
+                        blast.perform_blast(neighbour_faa, '--outfmt', '6',
+                                'sseqid', 'evalue', 'bitscore', 'ppos',
+                                'salltitles', evalue='1e-10')
+                    except TypeError:
+                        out = [name, fasta, faa, neighbours[gene][i][0]]
+                        print(*out, sep='\t')
+                        raise
+                    neighbours[gene].append(blast.get_protein_name())
+                else:
+                    neighbours[gene].append(''.join(neighbour_product))
+                # hopefully memmap headers to speed up
             gene_matches[gene].append(extract_protein(faa, gene))
             gene_matches[gene].append(neighbours[gene])
     else:
@@ -185,6 +195,7 @@ def compile_results(name, gene_matches, taxid, taxonomy, fasta, seqType, faa, q,
             result['reverse_distance'] = str(match[2][1][1])
             result['forward_product'] = match[2][2]
             result['reverse_product'] = match[2][3]
+            print(match[2][3])
         except IndexError:
             pass
         # put result dict in queue for listener
@@ -267,8 +278,8 @@ def extract_protein(faa, gene_tag, write=None):
     gene names"""
     protein_list = [ seq for seq in SeqIO.parse(faa, "fasta") if seq.id in
             gene_tag ]
-    #print(protein_list)
     if write:
+        print(protein_list)
         for protein in protein_list:
             SeqIO.write(protein, NEIGHBOUR_DIR + '/' + protein.name + '.faa', 
                     'fasta')
@@ -296,6 +307,23 @@ def get_contigs_gbk(gbk, name=None):
         out_handle.write(str(seq.seq) + "\n")
     out_handle.close()
     return name
+
+def find_gbk_product(gbk, target=True, unique=False):
+    """Matches target locus tag in given .gbk file. Yields any matched 
+    product. Yields all products in gbk if no target given"""
+    # hacky index
+    n = 0
+    if unique and n > 0:
+        return
+    try:
+        for feature in get_gbk_feature(gbk, "features"):
+            if feature.type == 'CDS':
+                if ''.join(feature.qualifiers['locus_tag']) == target:
+                    n += 1
+                    yield feature.qualifiers['product']
+    except KeyError:
+        return None
+    return None
 
 def init_results_table(q, outfile=None):
     headers = (
@@ -407,7 +435,8 @@ def main():
     parseTaxonomy()
 
     with open(args.fastaList) as seq_file:
-        inputSeqs = [ seq.strip().split('\t') for seq in seq_file ]
+        inputSeqs = [seq.strip().split('\t') for seq in seq_file if not 
+                    re.match('#|\n', seq)]
 
     manager = mp.Manager()
     q = manager.Queue()
