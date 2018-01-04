@@ -1,6 +1,7 @@
 #! /usr/bin/env python
 
 import pandas as pd
+import multiprocessing as mp
 import sys
 import argparse
 import numpy
@@ -8,7 +9,12 @@ import scipy
 import csv
 
 def _worker(DB, headers):
-    # here we define which 
+    # here we determine which function to call
+    pass
+
+def _listener(q):
+    # we'll need a listener to safely output results from seperate
+    # processes
     pass
 
 def main():
@@ -26,6 +32,12 @@ def main():
         print(headers)
 
     DB_all = pd.read_csv(args.minervaDB, sep='\t')
+
+    # define tasks to be done, seperate each into multiprocessing
+    manager = mp.Manager()
+    q = manager.Queue()
+    pool = mp.Pool(processes=args.threads + 1)
+    #listener = pool.apply_async(_listener, (q,))
 
 if __name__ == "__main__":
     main()
