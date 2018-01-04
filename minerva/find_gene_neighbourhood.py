@@ -104,9 +104,15 @@ class findGeneNeighbourhood():
             # min() is by far the slowest part of the code
             # inline lambda function actually faster than .get method
             #print(min(forward_dict, key=forward_dict.get))
-            forw_min = min(forward_dict.items(), key=lambda x: x[1])
-            rev_min = min(reverse_dict.items(), key=lambda x: x[1])
-            self.min_locs[match].append(forw_min)
-            self.min_locs[match].append(rev_min)
-            cprint(self.min_locs, "green")
+            cprint(self.name, "yellow")
+            try:
+                forw_min = min(forward_dict.items(), key=lambda x: x[1])
+                rev_min = min(reverse_dict.items(), key=lambda x: x[1])
+                self.min_locs[match].append(forw_min)
+                self.min_locs[match].append(rev_min)
+                cprint(self.min_locs, "green")
+            except ValueError:
+                cprint(forward_dict, "cyan")
+                cprint(reverse_dict, "cyan")
+                return None
         return self.min_locs

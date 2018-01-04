@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 
+from termcolor import cprint
 import re
 import sys
 import subprocess
@@ -13,16 +14,23 @@ class diamondBlast():
         """Presumes that the final column contains the full uniprot header
         which includes product name"""
         hits = str(self.blast_result.stdout, 'utf-8').strip()
+        #cprint(hits, "red")
+        if not hits:
+            return None
         for i, hit in enumerate(hits.split('\n')):
-            print(i)
-            print(hit)
+            #print(i)
+            #print(hit)
             full_head = hit.split('\t')[-1]
             protein_product = full_head.split('|')[-1].split('=')[0]
             protein_product = protein_product.split(' ')
-            del protein_product[0]
-            del protein_product[-1]
+            try:
+                del protein_product[0]
+                del protein_product[-1]
+            except IndexError:
+                print(full_head)
+                raise IndexError
             protein_product = ' '.join(protein_product)
-            print(protein_product)
+            #print(protein_product)
             if re.search("(hypothetical|uncharacterized)", protein_product, 
                     flags=re.IGNORECASE) and i < 10:
                 continue

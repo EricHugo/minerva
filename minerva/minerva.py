@@ -50,9 +50,9 @@ try:
 except FileExistsError:
     pass
 
-def _worker(fasta, seqType, raw_name, hmm, q, gen_directory, evalue=1e-20, 
+def _worker(fasta, seqType, raw_name, hmm, q, gen_directory, tax, evalue=1e-20, 
             crispr=False, outfile=None):
-    tax = parseTaxonomy()
+    #tax = parseTaxonomy()
     if seqType == "faa":
         faa = fasta
         return #not supported for now
@@ -125,44 +125,49 @@ def _worker(fasta, seqType, raw_name, hmm, q, gen_directory, evalue=1e-20,
                 gene_matches)
         neighbours = neighbour_find.find_minimum_distance()
         # get product names if possible
-        for gene, match in gene_matches.items():
-            for i in range(len(neighbours[gene])):
-                neighbour_product = None
-                for prod in find_gbk_product(fasta, target=neighbours[gene][i][0], 
-                        unique=True):
-                    #neighbour_product = prod
-                    pass
-                if not neighbour_product:
-                    cprint(gene, "magenta")
-                    print(neighbours[gene][i][0])
-                    print(faa)
-                    neighbour_faa = extract_protein(faa, 
-                            neighbours[gene][i][0], write=True)
-                    # new func that takes extracted protein and diamond
-                    # against uniprot => extracts protein name
-                    blast = diamondBlast('/fast/uniprot', '_')
-                    print(neighbour_faa)
-                    try:
-                        blast.perform_blast(neighbour_faa, '--outfmt', '6',
-                                'sseqid', 'evalue', 'bitscore', 'ppos',
-                                'salltitles', evalue='1e-10')
-                    except TypeError:
-                        out = [name, fasta, faa, neighbours[gene][i][0]]
-                        print(*out, sep='\t')
-                        raise
-                    neighbours[gene].append(blast.get_protein_name())
-                else:
-                    neighbours[gene].append(''.join(neighbour_product))
-                # hopefully memmap headers to speed up
-            gene_matches[gene].append(extract_protein(faa, gene))
-            gene_matches[gene].append(neighbours[gene])
+        if neighbours:
+            for gene, match in gene_matches.items():
+                neighbours = get_neighbour_products(faa, fasta, neighbours, gene)
+                gene_matches[gene].append(extract_protein(faa, gene))
+                gene_matches[gene].append(neighbours[gene])
     else:
         gene_matches['-'].append(['-', '-'])
     # make an entry of empty results  
     compile_results(name, gene_matches, taxid, taxonomy, fasta, seqType, faa, q, 
             seqLength, GC, gen_directory=gen_directory, c_bool=c_bool,
             c_out=c_out)
-    return 
+    return
+
+def get_neighbour_products(faa, fasta, neighbours, gene):
+    for i in range(len(neighbours[gene])):
+        # if no neighbours to that gene was found, skip for-loop
+        if not neighbours[gene]:
+            break
+        neighbour_product = None
+        for prod in find_gbk_product(fasta, target=neighbours[gene][i][0], 
+                unique=True):
+            neighbour_product = prod
+        if not neighbour_product:
+            cprint(gene, "magenta")
+            print(neighbours[gene][i][0])
+            print(faa)
+            neighbour_faa = extract_protein(faa, 
+                    neighbours[gene][i][0], write=True)
+            # new func that takes extracted protein and diamond
+            # against uniprot => extracts protein name
+            blast = diamondBlast('/fast/uniprot', '_')
+            print(neighbour_faa)
+            try:
+                blast.perform_blast(neighbour_faa, '--outfmt', '6',
+                        'sseqid', 'evalue', 'bitscore', 'ppos',
+                        'salltitles', evalue='1e-10')
+            except (TypeError, IndexError):
+                out = [name, fasta, faa, neighbours[gene][i][0]]
+                cprint(*out, "red", sep='\t')
+            neighbours[gene].append(blast.get_protein_name())
+        else:
+            neighbours[gene].append(''.join(neighbour_product))
+    return neighbours
 
 def compile_results(name, gene_matches, taxid, taxonomy, fasta, seqType, faa, q,
         seqLength, GC, gen_directory="protein_matches", c_bool="-", c_out="-"):
@@ -432,7 +437,7 @@ def main():
             raise RuntimeError('Unable to find hmmsearch in path')
 
     # Initialise taxdump, threadsafety
-    parseTaxonomy()
+    tax = parseTaxonomy()
 
     with open(args.fastaList) as seq_file:
         inputSeqs = [seq.strip().split('\t') for seq in seq_file if not 
@@ -450,7 +455,7 @@ def main():
         if len(i) == 2:
             i.append(None)
         job = pool.apply_async(_worker, (i[0], i[1], i[2], args.hmms, q, 
-            args.gendir), {"crispr":args.crispr})
+            args.gendir, tax), {"crispr":args.crispr})
         jobs.append(job)
     # get() all processes to catch errors
     for job in jobs:
