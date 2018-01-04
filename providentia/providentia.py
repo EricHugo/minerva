@@ -28,7 +28,7 @@ def main():
 
     args = parser.parse_args()
     with open(args.minervaDB) as DB:
-        headers = DB.readline()
+        headers = DB.readline().strip().split()
         print(headers)
 
     DB_all = pd.read_csv(args.minervaDB, sep='\t')
