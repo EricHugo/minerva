@@ -8,7 +8,7 @@ import numpy
 import scipy
 import csv
 
-def _worker(DB, headers):
+def _worker(task, DB, headers):
     # here we determine which function to call
     pass
 
@@ -34,10 +34,23 @@ def main():
     DB_all = pd.read_csv(args.minervaDB, sep='\t')
 
     # define tasks to be done, seperate each into multiprocessing
+    queries = []
     manager = mp.Manager()
     q = manager.Queue()
     pool = mp.Pool(processes=args.threads + 1)
-    #listener = pool.apply_async(_listener, (q,))
+    listener = pool.apply_async(_listener, (q,))
+
+    jobs = []
+    for i in queries:
+        job = pool.apply_async(_worker, (i, DB_all, headers))
+        jobs.append(job)
+
+    for job in jobs:
+        job.get()
+    q.put("done")
+    listener.get()
+    pool.close()
+    pool.join()
 
 if __name__ == "__main__":
     main()
