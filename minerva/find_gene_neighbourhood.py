@@ -86,10 +86,14 @@ class findGeneNeighbourhood():
             #print(all_locs)
             flat_match = list(chain.from_iterable(match_locs))
             # try dict comp to include gene name with calculated distance
+            # because else is mandatory in this syntax: None for values in
+            # wrong direction, cannot simulate circularity since most genomes
+            # are not closed
+            # may implement method of determining whether to simulate circularity
             forward_locs = [{ head: int(loc[0] - flat_match[1]) 
                             if int(loc[0] - flat_match[1] > 0)
                             else 0 if self.check_overlap(flat_match, loc)
-                            else int(loc[0] - flat_match[1] + self.seq_length) 
+                            else None
                             for loc in locs } for head, locs in  
                             self.all_locs.items() if not head == match ]
             # flatten list of dicts
@@ -97,7 +101,7 @@ class findGeneNeighbourhood():
             reverse_locs = [{ head: int(flat_match[0] - loc[1]) 
                             if int(flat_match[0] - loc[1] > 0)
                             else 0 if self.check_overlap(flat_match, loc, True)
-                            else int(flat_match[0] - loc[1] + self.seq_length) 
+                            else None
                             for loc in locs } for head, locs in  
                             self.all_locs.items() if not head == match ]
             reverse_dict = ChainMap(*reverse_locs)
@@ -106,8 +110,19 @@ class findGeneNeighbourhood():
             #print(min(forward_dict, key=forward_dict.get))
             cprint(self.name, "yellow")
             try:
+                # remove any None introduced neighbour detection
+                forward_dict = { head: dist for head, dist in forward_dict.items() 
+                                if type(dist) is int }
+                reverse_dict = { head: dist for head, dist in reverse_dict.items() 
+                                if type(dist) is int }
                 forw_min = min(forward_dict.items(), key=lambda x: x[1])
                 rev_min = min(reverse_dict.items(), key=lambda x: x[1])
+                if forw_min[1] > 20000:
+                    cprint(forward_locs, "cyan")
+                    print(all_locs)
+                elif rev_min[1] > 20000:
+                    cprint(reverse_locs, "cyan")
+                    print(all_locs)
                 self.min_locs[match].append(forw_min)
                 self.min_locs[match].append(rev_min)
                 cprint(self.min_locs, "green")
