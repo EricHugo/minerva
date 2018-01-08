@@ -9,7 +9,7 @@ import argparse
 import numpy as np
 import csv
 
-def _worker(task, DB, headers, selector, q):
+def _worker(task, df_minerva, headers, selector, q):
     # here we determine which function to call
     # Outer_selection (e.g. RAYT1_pruned), inner_selection (e.g. Genus), target
     #  (e.g. Forward_distance)
@@ -17,28 +17,33 @@ def _worker(task, DB, headers, selector, q):
     results = {}
     group, query = task
     print(group)
-    DB[query] = pd.to_numeric(DB[query], errors="coerce")
-    DB.dropna(subset=[query], inplace=True)
-    #print(DB.dtypes)
-    all_values = DB[query].dropna().values
+    df_minerva[query] = pd.to_numeric(df_minerva[query], errors="coerce")
+    df_minerva.dropna(subset=[query], inplace=True)
+    #print(df_minerva.dtypes)
+    all_values = df_minerva[query].dropna().values
     #print(type(all_values))
     # here get all unique values in group column -> iterate over each
     # comparing with all_values in scipy ttest
-    subgroups = DB[group].unique()
+    subgroups = df_minerva[group].unique()
     for subgroup in subgroups:
-        sub_DB = DB[DB[group].str.match(subgroup)]
-        sub_values = sub_DB[query].values
-        print(sub_values)
-        t = stats.ttest_ind(all_values, sub_values, equal_var=False, 
-                            nan_policy='raise')
-        print(t)
-        results[subgroup] = t
-        #print(subgroup)
-        #sub_values = DB.drop
+        results[subgroup] = pandas_ttest(df_minerva, group, subgroup)
     print(results)
     out[selector] = results
     q.put(out)
     return
+
+def pandas_ttest(df, group, subgroup=None):
+    if subgroup:
+        sub_DB = df[df[group].str.match(subgroup)]
+    else:
+        sub_DB = df
+    sub_values = sub_DB[query].values
+    print(sub_values)
+    t = stats.ttest_ind(all_values, sub_values, equal_var=False, 
+                        nan_policy='raise')
+    print(t)
+    return t
+
 
 def _listener(q, outfile='-'):
     # we'll need a listener to safely output results from seperate
@@ -82,8 +87,8 @@ def main():
         headers = DB.readline().strip().split()
         print(headers)
 
-    DB_all = pd.read_csv(args.minervaDB, sep='\t')
-    print(DB_all.tail())
+    df_minerva_all = pd.read_csv(args.minervaDB, sep='\t')
+    print(df_minerva_all.tail())
     outer_groups = ['RAYT1_pruned']#, 'RAYT2_pruned','RAYT3_pruned','RAYT4_pruned']
 
     # define tasks to be done, seperate each into multiprocessing
@@ -96,9 +101,9 @@ def main():
     jobs = []
     for outer_group in outer_groups:
         print(outer_group)
-        outer_DB = DB_all.groupby('Match').get_group(outer_group)
+        outer_df_minerva = df_minerva_all.groupby('Match').get_group(outer_group)
         for task in tasks:
-            job = pool.apply_async(_worker, (task, outer_DB, headers, outer_group, q))
+            job = pool.apply_async(_worker, (task, outer_df_minerva, headers, outer_group, q))
             jobs.append(job)
 
     for job in jobs:
