@@ -144,8 +144,13 @@ def _worker(fasta, seqType, raw_name, hmm, q, gen_directory, tax, evalue=1e-20,
 def get_neighbour_products(faa, fasta, neighbours, gene):
     for i in range(len(neighbours[gene])):
         # if no neighbours to that gene was found, skip for-loop
+        print(neighbours[gene])
         if not neighbours[gene]:
             break
+        # if no neighbour for this particular direction, then append no product
+        if not neighbours[gene][i][0]:
+            neighbours[gene].append(None)
+            continue
         neighbour_product = None
         for prod in find_gbk_product(fasta, target=neighbours[gene][i][0], 
                 unique=True):
@@ -199,8 +204,10 @@ def compile_results(name, gene_matches, taxid, taxonomy, fasta, seqType, faa, q,
         try:
             result['forward_neighbour'] = match[2][0][0]
             result['reverse_neighbour'] = match[2][1][0]
-            result['forward_distance'] = str(match[2][0][1])
-            result['reverse_distance'] = str(match[2][1][1])
+            if match[2][0][1]:
+                result['forward_distance'] = str(match[2][0][1])
+            if match[2][1][1]:
+                result['reverse_distance'] = str(match[2][1][1])
             result['forward_product'] = match[2][2]
             result['reverse_product'] = match[2][3]
             print(match[2][3])
