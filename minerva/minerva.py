@@ -95,9 +95,12 @@ def _worker(fasta, seqType, raw_name, hmm, q, gen_directory, tax, evalue=1e-20,
         fna = get_contigs_gbk(fasta, re.sub('\/', '', name + '.fna'))
         # if there is no translation to extract, get contigs and use prodigal
         # find ORFs instead
-        if os.stat(faa).st_size == 0:
+        if not os.path.isfile(faa) or os.stat(faa).st_size == 0:
             print("prodigal")
-            os.remove(faa)
+            try:
+                os.remove(faa)
+            except FileNotFoundError:
+                pass
             faa = micomplete.create_proteome(fna, re.sub('\/', '', name))
         # find CRISPRs
         if crispr:
@@ -125,7 +128,8 @@ def _worker(fasta, seqType, raw_name, hmm, q, gen_directory, tax, evalue=1e-20,
                 gene_matches)
         neighbours = neighbour_find.find_minimum_distance()
         # get product names if possible
-        if neighbours:
+        #if neighbours:
+        if False:
             for gene, match in gene_matches.items():
                 neighbours = get_neighbour_products(faa, fasta, neighbours, gene)
                 gene_matches[gene].append(extract_protein(faa, gene))
