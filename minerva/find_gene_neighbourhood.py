@@ -113,21 +113,32 @@ class findGeneNeighbourhood():
                 # remove any None introduced neighbour detection
                 forward_dict = { head: dist for head, dist in forward_dict.items() 
                                 if type(dist) is int }
-                reverse_dict = { head: dist for head, dist in reverse_dict.items() 
-                                if type(dist) is int }
                 forw_min = min(forward_dict.items(), key=lambda x: x[1])
-                rev_min = min(reverse_dict.items(), key=lambda x: x[1])
+                # some gbk have assembly gaps, that don't seperate into new 
+                # contigs, therefore won't be caught as non-neighbour
+                # therefore if gap is too long, assume its unreliable
+                # and discard
                 if forw_min[1] > 20000:
-                    cprint(forward_locs, "cyan")
+                    cprint(forward_locs, "red")
                     print(all_locs)
-                elif rev_min[1] > 20000:
-                    cprint(reverse_locs, "cyan")
-                    print(all_locs)
-                self.min_locs[match].append(forw_min)
-                self.min_locs[match].append(rev_min)
-                cprint(self.min_locs, "green")
+                    self.min_locs[match].append((None, None))
+                else:
+                    self.min_locs[match].append(forw_min)
             except ValueError:
                 cprint(forward_dict, "cyan")
+                self.min_locs[match].append((None, None))
+            try: 
+                reverse_dict = { head: dist for head, dist in reverse_dict.items() 
+                                if type(dist) is int }
+                rev_min = min(reverse_dict.items(), key=lambda x: x[1])
+                if rev_min[1] > 20000:
+                    cprint(reverse_locs, "red")
+                    print(all_locs)
+                    self.min_locs[match].append((None, None))
+                else:
+                    self.min_locs[match].append(rev_min)
+            except ValueError:
                 cprint(reverse_dict, "cyan")
-                return None
+                self.min_locs[match].append((None, None))
+            cprint(self.min_locs, "green")
         return self.min_locs
