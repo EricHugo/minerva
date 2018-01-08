@@ -128,8 +128,7 @@ def _worker(fasta, seqType, raw_name, hmm, q, gen_directory, tax, evalue=1e-20,
                 gene_matches)
         neighbours = neighbour_find.find_minimum_distance()
         # get product names if possible
-        #if neighbours:
-        if False:
+        if neighbours:
             for gene, match in gene_matches.items():
                 neighbours = get_neighbour_products(faa, fasta, neighbours, gene)
                 gene_matches[gene].append(extract_protein(faa, gene))
