@@ -15,35 +15,83 @@ def _worker(task, df_minerva, headers, selector, q):
     #  (e.g. Forward_distance)
     out = {}
     results = {}
+    print(task)
     group, query = task
     print(group)
-    df_minerva[query] = pd.to_numeric(df_minerva[query], errors="coerce")
-    df_minerva.dropna(subset=[query], inplace=True)
-    #print(df_minerva.dtypes)
-    all_values = df_minerva[query].dropna().values
+    # always remove any "-" entries as these represent no value in minerva
+    print(len(df_minerva))
+    df_valid = df_minerva[~df_minerva[query].str.match('-')].copy()
+    print(len(df_valid))
+    print(df_valid.dtypes)
+    try:
+        df_valid[query] = pd.to_numeric(df_valid[query], errors="raise")
+    except ValueError:
+        string_counts(df_valid, group, query)
+        return
+    df_valid.dropna(subset=[query], inplace=True)
+    print(len(df_valid))
+    print(df_valid.dtypes)
+    all_values = df_valid[query].dropna().values
     #print(type(all_values))
     # here get all unique values in group column -> iterate over each
     # comparing with all_values in scipy ttest
-    subgroups = df_minerva[group].unique()
+    subgroups = df_valid[group].unique()
     for subgroup in subgroups:
-        results[subgroup] = pandas_ttest(df_minerva, group, subgroup)
+        results[subgroup] = pandas_ttest(df_valid, all_values, group, query, 
+                                        subgroup)
     print(results)
     out[selector] = results
     q.put(out)
     return
 
-def pandas_ttest(df, group, subgroup=None):
+def string_counts(df, group, query_group):
+    all_values = {}
+    subgroups = df[group].unique()
+    for subgroup in subgroups:
+        sub_df = slice_dataframe(df, group, subgroup)
+        print(subgroup)
+        value = sub_df.groupby(query_group)[query_group].count()
+        print(value.values)
+        all_values[subgroup] = int(value.values)
+    all_counts = all_values.values()
+    print(all_counts)
+    for subgroup, count in all_values.items():
+        # can't simply find outlier counts, may have larger number of organisms
+        # contributing to large counts
+        # have to normalise
+        pass
+    return
+
+def slice_dataframe(df, group, subgroup):
+    sub_DB = df[df[group].str.match(subgroup)]
+    return sub_DB
+
+def transform_dataframe(df, query_group):
+    # converts query column to numbers
+    # either by counts or converting already numerical
+    df_valid = df_minerva[~df_minerva[query_group].str.match('-')].copy()
+    print(len(df_valid))
+    print(df_valid.dtypes)
+    try:
+        df_valid[query_group] = pd.to_numeric(df_valid[query], errors="raise")
+        df_valid.dropna(subset=[query_group], inplace=True)
+        values = df_valid[query_group].dropna().values
+    except ValueError:
+        pass
+    print(len(df_valid))
+    print(df_valid.dtypes)
+    return
+
+def pandas_ttest(df, all_values, group, query, subgroup=None):
     if subgroup:
         sub_DB = df[df[group].str.match(subgroup)]
     else:
         sub_DB = df
     sub_values = sub_DB[query].values
     print(sub_values)
-    t = stats.ttest_ind(all_values, sub_values, equal_var=False, 
+    ttest = stats.ttest_ind(all_values, sub_values, equal_var=False, 
                         nan_policy='raise')
-    print(t)
-    return t
-
+    return ttest
 
 def _listener(q, outfile='-'):
     # we'll need a listener to safely output results from seperate
@@ -89,10 +137,12 @@ def main():
 
     df_minerva_all = pd.read_csv(args.minervaDB, sep='\t')
     print(df_minerva_all.tail())
-    outer_groups = ['RAYT1_pruned']#, 'RAYT2_pruned','RAYT3_pruned','RAYT4_pruned']
+    outer_groups = ['RAYT1_pruned',]# 'RAYT2_pruned','RAYT3_pruned','RAYT4_pruned', 
+
+    print(df_minerva_all.dtypes)
 
     # define tasks to be done, seperate each into multiprocessing
-    tasks = [["Genus", "Forward_distance"]]
+    tasks = [["Genus", "Match"]]
     manager = mp.Manager()
     q = manager.Queue()
     pool = mp.Pool(processes=args.threads + 1)
@@ -101,7 +151,8 @@ def main():
     jobs = []
     for outer_group in outer_groups:
         print(outer_group)
-        outer_df_minerva = df_minerva_all.groupby('Match').get_group(outer_group)
+        if outer_group:
+            outer_df_minerva = df_minerva_all.groupby('Match').get_group(outer_group)
         for task in tasks:
             job = pool.apply_async(_worker, (task, outer_df_minerva, headers, outer_group, q))
             jobs.append(job)
