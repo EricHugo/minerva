@@ -3,7 +3,6 @@
 from __future__ import print_function
 from Bio import SeqIO
 from micomplete import calcCompleteness
-from micomplete import parseSeqStats
 #from micomplete import micomplete
 from contextlib import contextmanager
 from distutils import spawn
@@ -32,6 +31,8 @@ spec = importlib.util.spec_from_file_location("micomplete",
 "/home/hugoson/git/micomplete/micomplete/micomplete.py")
 micomplete = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(micomplete)
+
+from micomplete import parseSeqStats
 
 # import dev minerva modules
 sys.path.append('/home/hugoson/git/minerva')
@@ -270,7 +271,7 @@ def open_stdout(outfile):
 
 def get_matches(faa, name, hmm, evalue=1e-20):
     """Retrieves markers in hmm from the given proteome"""
-    comp = micomplete.calcCompleteness(faa, re.sub('\/', '', name), hmm, evalue)
+    comp = calcCompleteness(faa, re.sub('\/', '', name), hmm, evalue)
     foundmatches, dupmatches, totl = comp.get_completeness()
     print(name + ': ' + str(foundmatches) )
     # ensure unique, best match for each hmm
