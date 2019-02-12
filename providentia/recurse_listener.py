@@ -2,10 +2,14 @@
 
 from scipy import stats
 from collections import OrderedDict
+from termcolor import cprint
 import sys
 import pandas as pd
 import numpy as np
 import time
+import warnings
+
+np.seterr(all='raise')
 
 def recurse_listener():
     """Coroutine to recurse_database.py, listens to sent objects containing
@@ -48,6 +52,7 @@ def string_counts(df, sub_df, group, query_group, names_column='Name'):
         subgroups = df[names_column].unique()
     except TypeError:
         # not sure why typeerror. Empty df?
+        cprint("string_counts() TypeError", "red")
         print(df)
         return
     # check if there are enough values to do any population comps
@@ -69,9 +74,12 @@ def string_counts(df, sub_df, group, query_group, names_column='Name'):
                     else 0 for name in subgroups ]
     #print(query_copies)
     #print(group_copies)
-    mean = np.mean(group_copies)
-    std = np.std(group_copies)
-    query_mean = np.mean(query_copies)
+    try:
+        mean = np.mean(group_copies)
+        std = np.std(group_copies)
+        query_mean = np.mean(query_copies)
+    except FloatingPointError:
+        return
     #print(mean, end=' ')
     #print(std)
     #print(query_mean)
@@ -95,7 +103,7 @@ def df_to_num(df, column):
     #print(len(df_valid))
     #print(df_valid[column].dtypes)
     if df_valid[column].dtypes == "bool":
-        print("bool")
+       #print("bool")
         raise ValueError
     # attempt to convert query column to numeric values
     df_valid[column] = pd.to_numeric(df_valid[column], errors="raise")
@@ -117,16 +125,24 @@ def pandas_ttest(parent_df, query, target, target_group, names_column="Name",
     merged_df = pd.merge(df, sub_df, indicator=True, how='outer')
     outer_df = merged_df[merged_df['_merge'].str.match('left_only')]
     all_values = outer_df[query].values
-    print("ttest here")
-    print("query: " + query)
-    print(all_values)
-    print(sub_values)
-    print(target)
-    print(target_group)
-    print(df)
+    #print("ttest here")
+    #print("query: " + query)
+    #print(all_values)
+    #print(sub_values)
+    #print(target)
+    #print(target_group)
+    #print(df)
     # preform Welch's t-test
-    ttest = stats.ttest_ind(all_values, sub_values, equal_var=False, 
-                            nan_policy='raise')
+    # potential problem with 0-distance values
+    if not sub_values and all_values:
+        return
+    try:
+        ttest = stats.ttest_ind(all_values, sub_values, equal_var=False, 
+                                nan_policy='raise')
+    except FloatingPointError:
+        cprint("warning for:", "magenta")
+        print(all_values)
+        print(sub_values)
     #print(ttest)
     if ttest.pvalue <= cutoff:
         return ttest

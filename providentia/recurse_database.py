@@ -67,7 +67,7 @@ class recurse_database():
         headers = self.get_headers(current_headers)
         #print("headers")
         #print(headers)
-        ident = random.random()
+        #ident = random.random()
         #print("new_")
         for header in headers:
             new_headers = current_headers + list(header)
@@ -84,19 +84,27 @@ class recurse_database():
                 # resume upon completed yield loop
                 try:
                     sub_df = self.slice_df(df, new_headers[-1], subgroup) 
-                    df, df_type, result = self.call_listener(df, slices, new_headers,
-                                                 parent_df)
+                    # check for "Match", results presumed uninteresting without
+                    if "Match" in new_headers:
+                        df, df_type, result = self.call_listener(df, slices, new_headers,
+                                                     parent_df)
+                    else:
+                        result = None
                     if result:
                         self.q.put(result)
                 except AttributeError:
                     # take a look at parent_df vs pre-slice df. should parent be
                     # the pre-sliced rather than from prev recurse
                     sub_df = df
-                    df, df_type, result = self.call_listener(df, slices, new_headers,
-                                                 parent_df)
-                    # remove last slice. Necessary?
+                    # check for "Match", results presumed uninteresting without
+                    if "Match" in new_headers:
+                        df, df_type, result = self.call_listener(df, slices, new_headers,
+                                                     parent_df)
+                    else:
+                        result = None
                     if result:
                             self.q.put(result)
+                    # remove last slice. Necessary?
                     del slices[new_headers[-1]]  
                     if df_type == "num":
                         break

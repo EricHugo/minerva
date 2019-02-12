@@ -13,11 +13,13 @@ import numpy as np
 import csv
 import math
 import time
+import os
+sys.path.insert(0, os.path.abspath(".."))
 
 try:
     from recurse_database import recurse_database
 except ImportError:
-    from .recurse_database import recurse_database
+    from providentia.recurse_database import recurse_database
 
 def _worker(df, init_header, headers, q, names_column, threads, depth):
     # here we determine how to recurse down the list
