@@ -108,14 +108,14 @@ def _worker(fasta, seqType, raw_name, hmm, q, gen_directory, tax, evalue=1e-20,
             c_out, c_bool = find_CRISPRs(fna, re.sub('\/', '', name))
         else:
             c_out, c_bool = "-", "-"
-        # grab size and GC stats
+        # grab size and gc_content stats
         pseqs = parseSeqStats(fasta, name, seqType)
-        seqLength, _, GC = pseqs.get_length()
+        seq_length, _, gc_content = pseqs.get_length()
         taxid = tax.find_taxid(raw_name)
         if taxid:
             lineage = tax.parse_taxa(taxid)
             taxonomy = {rank: tax.find_scientific_name(taxid) for rank, taxid
-                    in lineage}
+                        in lineage}
         else:
             taxonomy = {}
     else:
@@ -125,7 +125,7 @@ def _worker(fasta, seqType, raw_name, hmm, q, gen_directory, tax, evalue=1e-20,
         name = basename
     gene_matches = get_matches(faa, name, hmm, evalue)
     if gene_matches:
-        neighbour_find = findGeneNeighbourhood(fasta, faa, name, seqLength,
+        neighbour_find = findGeneNeighbourhood(fasta, faa, name, seq_length,
                                                gene_matches)
         neighbours = neighbour_find.find_minimum_distance()
         # get product names if possible
@@ -138,7 +138,7 @@ def _worker(fasta, seqType, raw_name, hmm, q, gen_directory, tax, evalue=1e-20,
         gene_matches['-'].append(['-', '-'])
     # make an entry of empty results
     compile_results(name, gene_matches, taxid, taxonomy, fasta, seqType, faa, q,
-                    seqLength, GC, gen_directory=gen_directory, c_bool=c_bool,
+                    seq_length, gc_content, gen_directory=gen_directory, c_bool=c_bool,
                     c_out=c_out)
     return
 
@@ -179,7 +179,7 @@ def get_neighbour_products(faa, fasta, neighbours, gene):
     return neighbours
 
 def compile_results(name, gene_matches, taxid, taxonomy, fasta, seqType, faa, q,
-        seqLength, GC, gen_directory="protein_matches", c_bool="-", c_out="-"):
+        seq_length, gc_content, gen_directory="protein_matches", c_bool="-", c_out="-"):
     for gene, match in gene_matches.items():
         print(match)
         result = {}
@@ -200,8 +200,8 @@ def compile_results(name, gene_matches, taxid, taxonomy, fasta, seqType, faa, q,
         result['proteome_path'] = os.path.abspath(faa)
         result['crispr'] = str(c_bool)
         result['crispr_path'] = c_out
-        result['genome_length'] = str(seqLength)
-        result['gc-content'] = str(GC)
+        result['genome_length'] = str(seq_length)
+        result['gc-content'] = str(gc_content)
         try:
             result['forward_neighbour'] = match[2][0][0]
             result['reverse_neighbour'] = match[2][1][0]

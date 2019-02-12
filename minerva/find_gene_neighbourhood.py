@@ -70,6 +70,7 @@ class findGeneNeighbourhood():
         ends = flat_match[1] < query_locs[1]
         start_end = flat_match[0] > query_locs[1]
         end_start = flat_match[1] > query_locs[0]
+        ## Should start_end not be used in ones of these??
         if reverse:
             return not bool(starts) and not bool(ends) and bool(end_start)
         return bool(starts) and bool(ends) and bool(end_start)
