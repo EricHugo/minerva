@@ -66,14 +66,20 @@ class findGeneNeighbourhood():
     def check_overlap(self, flat_match, query_locs, reverse=False):
         """Tries to resolve an overlap in locations. Returns true if 
         starting query loc precedes the match start"""
-        starts = flat_match[0] < query_locs[0]
-        ends = flat_match[1] < query_locs[1]
-        start_end = flat_match[0] > query_locs[1]
-        end_start = flat_match[1] > query_locs[0]
-        ## Should start_end not be used in ones of these??
-        if reverse:
-            return not bool(starts) and not bool(ends) and bool(end_start)
-        return bool(starts) and bool(ends) and bool(end_start)
+        forws = flat_match[0] >= query_locs[0]
+        revs = flat_match[1] <= query_locs[1]
+        forw_rev = flat_match[0] <= query_locs[1]
+        rev_forw = flat_match[1] >= query_locs[0]
+        # query end after marker start
+        if forw_rev and forws and not reverse:
+            return True
+        # query start before marker end
+        if rev_forw and revs and reverse:
+            return True
+        # within
+        if not forws and not revs:
+            return True
+        return False
 
     def find_minimum_distance(self):
         """Compare the locations within hmm_locs to all_locs and find 

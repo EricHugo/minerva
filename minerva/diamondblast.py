@@ -13,7 +13,10 @@ class diamondBlast():
     def get_protein_name(self):
         """Presumes that the final column contains the full uniprot header
         which includes product name"""
-        hits = str(self.blast_result.stdout, 'utf-8').strip()
+        try:
+            hits = str(self.blast_result.stdout, 'utf-8').strip()
+        except AttributeError:
+            pass
         #cprint(hits, "red")
         if not hits:
             return None
