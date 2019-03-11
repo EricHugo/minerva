@@ -40,11 +40,12 @@ class diamondBlast():
             return protein_product
 
     def perform_blast(self, query, *args, evalue=1e-10):
-        blast_args = ['diamond', 'blastp', '-d', self.db, '-q', query, '-e', evalue] 
-        [ blast_args.append(arg) for arg in args ]
+        blast_args = ['diamond', 'blastp', '-d', self.db, '-q', query, '-e', 
+                      evalue, '-p', '1'] 
+        [blast_args.append(arg) for arg in args]
         print(blast_args)
         self.blast_result = subprocess.run(blast_args, stdout=subprocess.PIPE)
         if self.blast_result.returncode > 0:
             print("something went horribly wrong")
-            print(blast_result.args)
+            print(self.blast_result.args)
         return self.blast_result
