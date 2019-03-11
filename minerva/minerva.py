@@ -14,8 +14,7 @@ import tarfile
 import hashlib
 import subprocess
 from Bio import SeqIO
-from micomplete import calcCompleteness
-#from micomplete import micomplete
+from micomplete import calcCompleteness, parseSeqStats, micomplete
 from contextlib import contextmanager
 from distutils import spawn
 from collections import defaultdict
@@ -26,13 +25,13 @@ from termcolor import cprint
 from pathlib import Path
 
 # import dev version of miComplete
-import importlib.util
-spec = importlib.util.spec_from_file_location("micomplete", 
-"/home/hugoson/git/micomplete/micomplete/micomplete.py")
-micomplete = importlib.util.module_from_spec(spec)
-spec.loader.exec_module(micomplete)
+#import importlib.util
+#spec = importlib.util.spec_from_file_location("micomplete", 
+#"/home/hugoson/git/micomplete/micomplete/micomplete.py")
+#micomplete = importlib.util.module_from_spec(spec)
+#spec.loader.exec_module(micomplete)
 
-from micomplete import parseSeqStats
+
 
 # import dev minerva modules
 sys.path.append('/home/hugoson/git/minerva')
