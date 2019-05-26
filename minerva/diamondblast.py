@@ -16,7 +16,7 @@ class diamondBlast():
         try:
             hits = str(self.blast_result.stdout, 'utf-8').strip()
         except AttributeError:
-            pass
+            hits = None
         #cprint(hits, "red")
         if not hits:
             return None
