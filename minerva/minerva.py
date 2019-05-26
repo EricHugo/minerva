@@ -50,7 +50,7 @@ try:
 except FileExistsError:
     pass
 
-def _worker(fasta, seqType, raw_name, hmm, q, gen_directory, tax, evalue=1e-20,
+def _worker(fasta, seqType, raw_name, hmm, q, gen_directory, tax, evalue=1e-30,
             crispr=False, outfile=None):
     #tax = parseTaxonomy()
     if seqType == "faa":
@@ -118,7 +118,8 @@ def _worker(fasta, seqType, raw_name, hmm, q, gen_directory, tax, evalue=1e-20,
         else:
             taxonomy = {}
     else:
-        raise TypeError('Sequence type needs to be specified as one of faa/fna/gbk')
+        raise TypeError('Sequence type needs to be specified as one of '
+                        'faa/fna/gbk')
     basename = os.path.basename(fasta).split('.')[0]
     if not name:
         name = basename
@@ -268,9 +269,9 @@ def open_stdout(outfile):
         if handle is not sys.stdout:
             handle.close()
 
-def get_matches(faa, name, hmm, evalue=1e-20):
+def get_matches(faa, name, hmm, evalue=1e-30):
     """Retrieves markers in hmm from the given proteome"""
-    comp = calcCompleteness(faa, re.sub('\/', '', name), hmm, evalue=1e-15, bias=0.3, best_domain=1e-5)
+    comp = calcCompleteness(faa, re.sub('\/', '', name), hmm, evalue=evalue, bias=0.3, best_domain=1e-5)
     foundmatches, _, _ = comp.get_completeness()
     print(name + ': ' + str(foundmatches))
     # ensure unique, best match for each hmm
