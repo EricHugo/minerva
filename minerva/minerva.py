@@ -129,9 +129,11 @@ def _worker(fasta, seqType, raw_name, hmm, q, gen_directory, tax, evalue=1e-30,
                                                gene_matches)
         neighbours = neighbour_find.find_minimum_distance()
         # get product names if possible
+        print(neighbours)
         if neighbours:
             for gene, _ in gene_matches.items():
-                neighbours = get_neighbour_products(faa, fasta, neighbours, gene)
+                neighbours, neighbour_OGs = get_neighbour_products(faa, fasta,
+                                                                   neighbours, gene, q)
                 gene_matches[gene].append(extract_protein(faa, gene))
                 gene_matches[gene].append(neighbours[gene])
     else:
@@ -142,9 +144,11 @@ def _worker(fasta, seqType, raw_name, hmm, q, gen_directory, tax, evalue=1e-30,
                     c_out=c_out)
     return
 
-def get_neighbour_products(faa, fasta, neighbours, gene):
+def get_neighbour_products(faa, fasta, neighbours, gene, q):
+    neighbour_OGs = []
     for i in range(len(neighbours[gene])):
         # if no neighbours to that gene was found, skip for-loop
+        print("here")
         print(neighbours[gene])
         if not neighbours[gene]:
             break
@@ -156,16 +160,20 @@ def get_neighbour_products(faa, fasta, neighbours, gene):
         for prod in find_gbk_product(fasta, target=neighbours[gene][i][0],
                                      unique=True):
             neighbour_product = prod
+            neighbour_faa = extract_protein(faa, neighbours[gene][i][0],
+                                            write=True)
+            print(neighbour_faa)
         if not neighbour_product:
             cprint(gene, "magenta")
             print(neighbours[gene][i][0])
             print(faa)
             neighbour_faa = extract_protein(faa, neighbours[gene][i][0],
                                             write=True)
+            q.put(neighbour_faa)
             # new func that takes extracted protein and diamond
             # against uniprot => extracts protein name
-            blast = diamondBlast('/fast/uniprot', '_')
-            print(neighbour_faa)
+            blast = diamondBlast('~/share/diamond-db', '_')
+            cprint(neighbour_faa, "magenta")
             try:
                 blast.perform_blast(neighbour_faa, '--outfmt', '6',
                                     'sseqid', 'evalue', 'bitscore', 'ppos',
@@ -176,7 +184,10 @@ def get_neighbour_products(faa, fasta, neighbours, gene):
             neighbours[gene].append(blast.get_protein_name())
         else:
             neighbours[gene].append(''.join(neighbour_product))
-    return neighbours
+        neighbour_OG = get_matches(neighbour_faa, "test", '/home/eric/share/eggNOG/bactNOG/all_bactNOG.hmm')
+        neighbour_OGs.append(neighbour_OG)
+        print(neighbour_OG)
+    return neighbours, neighbour_OGs
 
 def compile_results(name, gene_matches, taxid, taxonomy, fasta, seqType, faa, q,
         seq_length, gc_content, gen_directory="protein_matches", c_bool="-", c_out="-"):
@@ -365,9 +376,11 @@ def init_results_table(q, outfile=None):
         'Forward_neighbour',
         'Forward_distance',
         'Forward_product',
+        'Forward_OG',
         'Reverse_neighbour',
         'Reverse_distance',
         'Reverse_product',
+        'Reverse_OG'
         )
     if outfile and not outfile == '-':
         headers = tuple(headers)
