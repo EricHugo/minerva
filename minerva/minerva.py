@@ -117,6 +117,7 @@ def _worker(fasta, seqType, raw_name, hmm, q, gen_directory, tax, evalue=1e-30,
                         in lineage}
         else:
             taxonomy = {}
+        print(taxonomy)
     else:
         raise TypeError('Sequence type needs to be specified as one of '
                         'faa/fna/gbk')
@@ -128,14 +129,16 @@ def _worker(fasta, seqType, raw_name, hmm, q, gen_directory, tax, evalue=1e-30,
         neighbour_find = findGeneNeighbourhood(fasta, faa, name, seq_length,
                                                gene_matches)
         neighbours = neighbour_find.find_minimum_distance()
+
         # get product names if possible
         print(neighbours)
         if neighbours:
-            for gene, _ in gene_matches.items():
-                neighbours, neighbour_OGs = get_neighbour_products(faa, fasta,
-                                                                   neighbours, gene, q)
+            for gene, neighbourhood in neighbours.items():
+                print(gene)
+                neighbours = get_neighbour_products(faa, fasta, neighbourhood, gene, q)
                 gene_matches[gene].append(extract_protein(faa, gene))
-                gene_matches[gene].append(neighbours[gene])
+                gene_matches[gene].append(neighbours)
+                print(gene_matches)
     else:
         gene_matches['-'].append(['-', '-'])
     # make an entry of empty results
@@ -146,30 +149,28 @@ def _worker(fasta, seqType, raw_name, hmm, q, gen_directory, tax, evalue=1e-30,
 
 def get_neighbour_products(faa, fasta, neighbours, gene, q):
     neighbour_OGs = []
-    for i in range(len(neighbours[gene])):
+    print(neighbours)
+    for each in ['forward', 'reverse']:
         # if no neighbours to that gene was found, skip for-loop
-        print("here")
-        print(neighbours[gene])
-        if not neighbours[gene]:
+        if not neighbours[each + '_neighbour']:
             break
         # if no neighbour for this particular direction, then append no product
-        if not neighbours[gene][i][0]:
+        if not neighbours[each + '_neighbour']:
             neighbours[gene].append(None)
             continue
         neighbour_product = None
-        for prod in find_gbk_product(fasta, target=neighbours[gene][i][0],
+        for prod in find_gbk_product(fasta, target=neighbours[each + '_neighbour'],
                                      unique=True):
             neighbour_product = prod
-            neighbour_faa = extract_protein(faa, neighbours[gene][i][0],
+            neighbour_faa = extract_protein(faa, neighbours[each + '_neighbour'],
                                             write=True)
             print(neighbour_faa)
         if not neighbour_product:
             cprint(gene, "magenta")
-            print(neighbours[gene][i][0])
+            print(neighbours[each + '_neighbour'])
             print(faa)
-            neighbour_faa = extract_protein(faa, neighbours[gene][i][0],
+            neighbour_faa = extract_protein(faa, neighbours[each + '_neighbour'],
                                             write=True)
-            q.put(neighbour_faa)
             # new func that takes extracted protein and diamond
             # against uniprot => extracts protein name
             blast = diamondBlast('~/share/diamond-db', '_')
@@ -179,15 +180,15 @@ def get_neighbour_products(faa, fasta, neighbours, gene, q):
                                     'sseqid', 'evalue', 'bitscore', 'ppos',
                                     'salltitles', evalue='1e-10')
             except (TypeError, IndexError):
-                out = [fasta, faa, neighbours[gene][i][0]]
+                out = [fasta, faa, neighbours[each + '_neighbour']]
                 cprint(out, "red")
-            neighbours[gene].append(blast.get_protein_name())
+            neighbours[each + '_OG'] = ''.join(blast.get_protein_name())
         else:
-            neighbours[gene].append(''.join(neighbour_product))
-        neighbour_OG = get_matches(neighbour_faa, "test", '/home/eric/share/eggNOG/bactNOG/all_bactNOG.hmm')
-        neighbour_OGs.append(neighbour_OG)
-        print(neighbour_OG)
-    return neighbours, neighbour_OGs
+            neighbours[each + '_OG'] = ''.join(neighbour_product)
+        neighbour_OG = get_matches(neighbour_faa, "test", '/nobackup/eggNOG/all_bactNOG.hmm')
+        neighbours[each + '_OG'] = neighbour_OG
+    print(neighbours)
+    return neighbours
 
 def compile_results(name, gene_matches, taxid, taxonomy, fasta, seqType, faa, q,
         seq_length, gc_content, gen_directory="protein_matches", c_bool="-", c_out="-"):
