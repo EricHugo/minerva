@@ -43,12 +43,15 @@ class clusterProteins():
         if db.returncode > 0:
             print("Failed to makedb")
             return None
-        blast = diamondBlast(filename, filename)
-        blast_result = blast.perform_blast(filename, evalue="1e-2")
-        print(blast_result)
         # blast cat file against db
+        blast = diamondBlast(filename, filename)
+        results = blast.perform_blast(filename, evalue="1e-2").split('\n')
+        self.blast_results = []
+        for blast_result in results:
+            self.blast_results.append(blast_result.split('\t'))
+        print(self.blast_results)
         # return scores
-        pass
+        return self.blast_results
 
     def mcl_cluster(self):
         pass
