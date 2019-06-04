@@ -48,4 +48,4 @@ class diamondBlast():
         if self.blast_result.returncode > 0:
             print("something went horribly wrong")
             print(self.blast_result.args)
-        return self.blast_result
+        return self.blast_result.stdout.decode("utf-8")
