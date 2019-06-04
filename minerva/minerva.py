@@ -182,11 +182,13 @@ def get_neighbour_products(faa, fasta, neighbours, gene, q):
             except (TypeError, IndexError):
                 out = [fasta, faa, neighbours[each + '_neighbour']]
                 cprint(out, "red")
-            neighbours[each + '_OG'] = ''.join(blast.get_protein_name())
+            neighbours[each + '_product'] = ''.join(blast.get_protein_name())
         else:
-            neighbours[each + '_OG'] = ''.join(neighbour_product)
-        neighbour_OG = get_matches(neighbour_faa, "test", '/nobackup/eggNOG/all_bactNOG.hmm')
-        neighbours[each + '_OG'] = neighbour_OG
+            neighbours[each + '_product'] = ''.join(neighbour_product)
+        neighbours[each + '_path'] = os.path.abspath(neighbour_faa)
+        #neighbour_OG = get_matches(neighbour_faa, "test", '/seq/databases/eggNOG/bactNOG/all_bactNOG.hmm')
+        #neighbours[each + '_OG'] = list(neighbour_OG.values())[0][0][0]
+        neighbours[each + '_OG'] = "NA"
     print(neighbours)
     return neighbours
 
@@ -215,15 +217,16 @@ def compile_results(name, gene_matches, taxid, taxonomy, fasta, seqType, faa, q,
         result['genome_length'] = str(seq_length)
         result['gc-content'] = str(gc_content)
         try:
-            result['forward_neighbour'] = match[2][0][0]
-            result['reverse_neighbour'] = match[2][1][0]
-            if match[2][0][1]:
-                result['forward_distance'] = str(match[2][0][1])
-            if match[2][1][1]:
-                result['reverse_distance'] = str(match[2][1][1])
-            result['forward_product'] = match[2][2]
-            result['reverse_product'] = match[2][3]
-            print(match[2][3])
+            result['forward_neighbour'] = match[2]['forward_neighbour']
+            result.update(match[2])
+            #result['reverse_neighbour'] = match[2][1][0]
+            #if match[2][0][1]:
+            #    result['forward_distance'] = str(match[2][0][1])
+            #if match[2][1][1]:
+            #    result['reverse_distance'] = str(match[2][1][1])
+            #result['forward_product'] = match[2][2]
+            #result['reverse_product'] = match[2][3]
+            #print(match[2][3])
         except IndexError:
             pass
         # put result dict in queue for listener
@@ -378,10 +381,12 @@ def init_results_table(q, outfile=None):
         'Forward_distance',
         'Forward_product',
         'Forward_OG',
+        'Forward_path',
         'Reverse_neighbour',
         'Reverse_distance',
         'Reverse_product',
-        'Reverse_OG'
+        'Reverse_OG',
+        'Reverse_path',
         )
     if outfile and not outfile == '-':
         headers = tuple(headers)
@@ -489,6 +494,7 @@ def main():
     listener.get()
     pool.close()
     pool.join()
+    # finally cluster neighbours
 
 if __name__ == "__main__":
     main()
