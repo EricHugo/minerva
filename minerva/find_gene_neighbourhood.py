@@ -117,14 +117,17 @@ class findGeneNeighbourhood():
             # inline lambda function actually faster than .get method
             #print(min(forward_dict, key=forward_dict.get))
             cprint(self.name, "yellow")
+            forw = {}
+            rev = {}
+            forw['forward_neighbour'] = None
+            forw['forward_distance'] = None
+            rev['reverse_neighbour'] = None
+            rev['reverse_distance'] = None
             try:
-                forw = {}
                 # remove any None introduced neighbour detection
                 forward_dict = { head: dist for head, dist in forward_dict.items() 
                                 if type(dist) is int }
                 forw_min = min(forward_dict.items(), key=lambda x: x[1])
-                forw['forward_neighbour'] = forw_min[0]
-                forw['forward_distance'] = forw_min[1]
                 # some gbk have assembly gaps, that don't seperate into new 
                 # contigs, therefore won't be caught as non-neighbour
                 # therefore if gap is too long, assume its unreliable
@@ -132,29 +135,34 @@ class findGeneNeighbourhood():
                 if forw_min[1] > 20000:
                     cprint(forward_locs, "red")
                     print(all_locs)
-                    self.min_locs[match].append((None, None))
+                    # self.min_locs[match].append((None, None))
+                    self.min_locs[match].update(forw)
                 else:
+                    forw['forward_neighbour'] = str(forw_min[0])
+                    forw['forward_distance'] = str(forw_min[1])
                     self.min_locs[match].update(forw)
                     #self.min_locs[match].append(forw_min)
             except ValueError:
                 cprint(forward_dict, "cyan")
-                self.min_locs[match].append((None, None))
+                self.min_locs[match].update(forw)
+                #self.min_locs[match].append((None, None))
             try: 
-                rev = {}
                 reverse_dict = { head: dist for head, dist in reverse_dict.items() 
                                 if type(dist) is int }
                 rev_min = min(reverse_dict.items(), key=lambda x: x[1])
-                rev['reverse_neighbour'] = rev_min[0]
-                rev['reverse_distance'] = rev_min[1]
                 if rev_min[1] > 20000:
                     cprint(reverse_locs, "red")
                     print(all_locs)
-                    self.min_locs[match].append((None, None))
+                    #self.min_locs[match].append((None, None))
+                    self.min_locs[match].update(rev)
                 else:
+                    rev['reverse_neighbour'] = str(rev_min[0])
+                    rev['reverse_distance'] = str(rev_min[1])
                     #self.min_locs[match].append(rev_min)
                     self.min_locs[match].update(rev)
             except ValueError:
                 cprint(reverse_dict, "cyan")
-                self.min_locs[match].append((None, None))
+                self.min_locs[match].update(rev)
+                #self.min_locs[match].append((None, None))
             cprint(self.min_locs, "green")
         return self.min_locs
