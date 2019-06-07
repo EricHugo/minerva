@@ -11,10 +11,13 @@ from minerva import diamondBlast
 class clusterProteins():
     def __init__(self, result_tab, threads=1):
         self.blast_results = []
+        self.all_genes = set()
         df = pd.read_csv(result_tab, sep='\t')
         paths = df['Forward_path'].values.tolist()
         paths = paths + df['Reverse_path'].values.tolist()
         print(paths)
+        # should sequences be filtered for compsotitional bias
+        # CAST?
         self.blast_all(paths)
         self._format_blast()
         return
@@ -31,24 +34,29 @@ class clusterProteins():
                               self.result_tab}
 
     def _format_blast(self):
+        labels = ["Gene", "Gene_comp", "E-value"]
         results_noself = []
-        all_genes = set()
         # remove self-self hits
         for blast_result in self.blast_results:
             if blast_result[0] == blast_result[1]:
                 continue
-            results_noself.append(blast_result)
-            all_genes.add(blast_result[0])
-            all_genes.add(blast_result[1])
+            # also remove pident
+            results_noself.append(blast_result[:-1])
+            self.all_genes.add(blast_result[0])
+            self.all_genes.add(blast_result[1])
         # fix order
-        all_genes = list(all_genes)
+        self.all_genes = list(self.all_genes)
         print(results_noself)
-        print(all_genes)
+        print(self.all_genes)
+        self.blast_df = pd.DataFrame.from_records(results_noself, columns=labels)
+        print(df)
+        return
+        ########################################
         results_dict = defaultdict(list)
         results_dict['Gene'] = []
         for result in results_noself:
             results_dict['Gene'].append(result[0])
-            for gene in all_genes:
+            for gene in self.all_genes:
                 if result[1] == gene:
                     results_dict[gene].append(float(result[2]))
                 else:
@@ -57,13 +65,14 @@ class clusterProteins():
         df = pd.DataFrame.from_dict(results_dict)
         print(df.dtypes)
         print(df)
+        df.to_csv('test_mcl')
         return
 
     def blast_all(self, files):
         filename = 'all_neighbours.faa'
         handle = open(filename, 'w+')
         # cat all files to single file
-        sequences = [SeqIO.parse(seq, 'fasta') for seq in files]
+        sequences = [SeqIO.parse(seq, 'fasta') for seq in files if not seq == '-']
         for sequence in sequences:
             for seq in sequence:
                 handle.write('>' + seq.id + '\n')
@@ -86,7 +95,12 @@ class clusterProteins():
         # return scores
         return self.blast_results
 
-    def mcl_cluster(self):
+    def mcl_cluster(self, *args):
+        self.blast_df.to_csv("test_mcl.csv", sep='\t')
+        # define outfile also
+        mcl_command = ['mcl', 'test_mcl.csv', '--abc']
+        mcl_command.append(args)
+        subprocess.run(mcl_command)
         pass
 
     def assign_groups(self):
