@@ -112,12 +112,18 @@ def create_stacked_summary(found_v_total_set, secondary_title):
     # here loop all different results dicts within the set
     for found_v_total in found_v_total_set:
         # determine number of positives
-        found_no = [ len(set(found[0])) / len(set(found[1])) for name, found 
-                     in found_v_total.items() ]
+        try:
+            found_no = [ len(set(found[0])) / len(set(found[1])) for name, found 
+                         in found_v_total.items() ]
+        except ZeroDivisionError:
+            found_no = 0
         # determine length of the the total - positives
-        remaining_no = [ (len(set(total[1])) - len(set(total[0]))) / 
-                         len(set(total[1])) for name, total in 
-                         found_v_total.items() ]
+        try:
+            remaining_no = [ (len(set(total[1])) - len(set(total[0]))) / 
+                             len(set(total[1])) for name, total in 
+                             found_v_total.items() ]
+        except ZeroDivisionError:
+            remaining_no = 0
         labels = [ name for name, found in found_v_total.items() ]
         ind = np.arange(len(found_v_total))
         p1 = ax.bar(ind + sep, remaining_no, color='#348abd', width=width)
