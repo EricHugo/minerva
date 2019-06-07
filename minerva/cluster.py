@@ -3,6 +3,7 @@
 import sys
 import subprocess
 import pandas as pd
+import numpy as np
 from collections import defaultdict
 from Bio import SeqIO
 
@@ -41,6 +42,7 @@ class clusterProteins():
             if blast_result[0] == blast_result[1]:
                 continue
             # also remove pident
+            blast_result[2] = -1 * np.log(float(blast_result[2]))
             results_noself.append(blast_result[:-1])
             self.all_genes.add(blast_result[0])
             self.all_genes.add(blast_result[1])
@@ -49,7 +51,7 @@ class clusterProteins():
         print(results_noself)
         print(self.all_genes)
         self.blast_df = pd.DataFrame.from_records(results_noself, columns=labels)
-        print(df)
+        print(self.blast_df)
         return
         ########################################
         results_dict = defaultdict(list)
@@ -95,13 +97,24 @@ class clusterProteins():
         # return scores
         return self.blast_results
 
-    def mcl_cluster(self, *args):
-        self.blast_df.to_csv("test_mcl.csv", sep='\t')
+    def mcl_cluster(self, *args, outfile=None):
+        if not outfile:
+            outfile = "mcl_minvera.tmp.out"
+        self.blast_df.to_csv('test_mcl.csv', sep='\t', index=False, header=False)
         # define outfile also
-        mcl_command = ['mcl', 'test_mcl.csv', '--abc']
-        mcl_command.append(args)
+        mcl_command = ['mcl', 'test_mcl.csv', '--abc', '-o', outfile, '-I', '1.6']
+        if args:
+            mcl_command.append(args)
+        print(mcl_command)
         subprocess.run(mcl_command)
-        pass
+        return outfile
 
-    def assign_groups(self):
-        pass
+    def assign_groups(self, infile, name='COG'):
+        # take len of cluster file, add 0's as needed
+        # e.g. 001 ...
+        clusters = {}
+        with open(infile) as mcl_clusters:
+            for i, cluster in enumerate(mcl_clusters):
+                clusters[name + str(i)] = cluster.strip().split()
+        print(clusters)
+        return clusters
