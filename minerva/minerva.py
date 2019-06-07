@@ -36,12 +36,13 @@ from pathlib import Path
 # import dev minerva modules
 sys.path.append('/home/hugoson/git/minerva')
 try:
-    from minerva import parseTaxonomy, parseMapFile, findGeneNeighbourhood, diamondBlast
+    from minerva import parseTaxonomy, parseMapFile, findGeneNeighbourhood, diamondBlast, clusterProteins
 except ImportError:
     from parse_taxonomy import parseTaxonomy
     from parse_minerva_map import parseMapFile
     from find_gene_neighbourhood import findGeneNeighbourhood
     from diamondblast import diamondBlast
+    from cluster import clusterProteins
 
 ILLEGAL_CHARACTERS = "|><()[]{}=*/"
 NEIGHBOUR_DIR = "neighbour_proteins"
@@ -495,6 +496,10 @@ def main():
     pool.close()
     pool.join()
     # finally cluster neighbours
+    clustering = clusterProteins(args.outfile)
+    out = clustering.mcl_cluster()
+    clustering.assign_groups(out)
+    return
 
 if __name__ == "__main__":
     main()
