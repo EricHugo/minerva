@@ -149,15 +149,11 @@ def _worker(fasta, seqType, raw_name, hmm, q, gen_directory, tax, evalue=1e-30,
     return
 
 def get_neighbour_products(faa, fasta, neighbours, gene, q):
-    neighbour_OGs = []
+    # neighbour_OGs = []
     print(neighbours)
     for each in ['forward', 'reverse']:
-        # if no neighbours to that gene was found, skip for-loop
-        if not neighbours[each + '_neighbour']:
-            break
         # if no neighbour for this particular direction, then append no product
         if not neighbours[each + '_neighbour']:
-            neighbours[gene].append(None)
             continue
         neighbour_product = None
         for prod in find_gbk_product(fasta, target=neighbours[each + '_neighbour'],
