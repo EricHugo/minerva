@@ -498,7 +498,8 @@ def main():
     # finally cluster neighbours
     clustering = clusterProteins(args.outfile)
     out = clustering.mcl_cluster()
-    clustering.assign_groups(out)
+    clusters = clustering.assign_groups(out)
+    clustering.attribute_COGs(clusters)
     return
 
 if __name__ == "__main__":

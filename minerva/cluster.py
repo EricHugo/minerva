@@ -13,9 +13,9 @@ class clusterProteins():
     def __init__(self, result_tab, threads=1):
         self.blast_results = []
         self.all_genes = set()
-        df = pd.read_csv(result_tab, sep='\t')
-        paths = df['Forward_path'].values.tolist()
-        paths = paths + df['Reverse_path'].values.tolist()
+        self.results_df = pd.read_csv(result_tab, sep='\t')
+        paths = self.results_df['Forward_path'].values.tolist()
+        paths = paths + self.results_df['Reverse_path'].values.tolist()
         print(paths)
         # should sequences be filtered for compsotitional bias
         # CAST?
@@ -118,3 +118,11 @@ class clusterProteins():
                 clusters[name + str(i)] = cluster.strip().split()
         print(clusters)
         return clusters
+
+    def attribute_COGs(self, clusters):
+        for cog, genes in clusters.items():
+            for gene in genes:
+                self.results_df['Forward_OG'][self.results_df['Forward_neighbour'].str.match(gene)] = cog
+                self.results_df['Reverse_OG'][self.results_df['Reverse_neighbour'].str.match(gene)] = cog
+        print(self.results_df)
+        self.results_df.to_csv('test_final', sep='\t')
