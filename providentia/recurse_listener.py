@@ -17,6 +17,7 @@ def recurse_listener():
     result = None
     while True:
         df, slices, headers, df_type, parent_df = yield result
+        #print("df_type: " + df_type)
         # names column needs to be sent also, determine number of copies
         names = None
         # here call appropriate stats test

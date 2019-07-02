@@ -65,7 +65,7 @@ class recurse_database():
         
     def recurse(self, df, slices, current_headers, parent_df=None):
         headers = self.get_headers(current_headers)
-        #print("headers")
+        print("headers")
         #print(headers)
         #ident = random.random()
         #print("new_")
@@ -73,23 +73,24 @@ class recurse_database():
             new_headers = current_headers + list(header)
             self.headerlist = new_headers
             subgroups = df[new_headers[-1]].unique()
-            #print("headers")
-            #print(new_headers)
-            #print(ident)
-            #print(slices)
+            print(new_headers)
+            print(slices)
             for subgroup in subgroups:
+                print(subgroup)
                 slices[new_headers[-1]] = subgroup
                 # here send to recurse_listener coroutine 
                 # this will pause execution and handle results
                 # resume upon completed yield loop
                 try:
                     sub_df = self.slice_df(df, new_headers[-1], subgroup) 
+                    #print(sub_df)
                     # check for "Match", results presumed uninteresting without
-                    if "Match" in new_headers:
+                    if "Match" in new_headers and not set(sub_df['Match'].values) == set('-'):
                         df, df_type, result = self.call_listener(df, slices, new_headers,
                                                      parent_df)
                     else:
                         result = None
+                        df_type = None
                     if result:
                         self.q.put(result)
                 except AttributeError:
@@ -97,7 +98,7 @@ class recurse_database():
                     # the pre-sliced rather than from prev recurse
                     sub_df = df
                     # check for "Match", results presumed uninteresting without
-                    if "Match" in new_headers:
+                    if "Match" in new_headers and not set(sub_df['Match'].values) == set('-'):
                         df, df_type, result = self.call_listener(df, slices, new_headers,
                                                      parent_df)
                     else:
