@@ -73,8 +73,7 @@ def _listener(q, outfile='-'):
             if type(out_object) is tuple:
                 stat = str(out_object[0])
                 slices = str(out_object[1])
-                with open("result/results", 'a') as f:
-                    f.write(stat + ' ' + slices + '\n')
+                handle.write(stat + ' ' + slices + '\n')
             try:
                 if out_object == "done":
                     break
@@ -144,6 +143,8 @@ def main():
     parser.add_argument("-d", "--depth", default=None, type=int,
                         help="""Specify maximum recursive depth that will be
                         descended""")
+    parser.add_argument("-o", "--outfile", type=str, default='-', help="""Specify
+                        outfile for results writing. By default writes to stdout.""")
     parser.add_argument("-t", "--threads", default=1, type=int, help="""Define 
                         number of threads to be used""")
 
@@ -168,7 +169,7 @@ def main():
     q = manager.Queue()
     # init pool as non-daemon to allow for spawning new child processes within
     pool = NoDaemonProcessPool(processes = args.threads + 1)
-    listener = pool.apply_async(_listener, (q,))
+    listener = pool.apply_async(_listener, (q, args.outfile))
 
     jobs = []
     opt_threads = optimal_ints(args.threads, len(entry_set))
