@@ -36,8 +36,8 @@ def recurse_listener():
                 continue
         elif df_type == "str":
             #print("str")
-            #print(headers)
-            #print(slices)
+            print(headers)
+            print(slices)
             result = string_counts(parent_df, df, headers[-1], slices[headers[-1]])
             if result:
                 result = (result, slices)
@@ -47,7 +47,7 @@ def string_counts(df, sub_df, group, query_group, names_column='Name'):
     """Attempts to produce string counts per name in names_column
     compares the query_group to others in group to asses if it is
     outside 1 std dev."""
-    all_values = {}
+    #all_values = {}
     #print(df)
     try:
         subgroups = df[names_column].unique()
@@ -63,18 +63,19 @@ def string_counts(df, sub_df, group, query_group, names_column='Name'):
     #print("sub")
     #print(sub_df)
     subqueries = sub_df[names_column].unique()
-    subgroups = [ subgroup for subgroup in subgroups if not subgroup in subqueries ]
-    #print(subgroups)
-    #print(subqueries)
+    subgroups = [subgroup for subgroup in subgroups
+                 if subgroup not in subqueries]
+    print(subgroups)
+    print(subqueries)
     ## here count "-" in match column as 0
-    query_copies = [ len(df[df[names_column].str.match(name)]) if '-' not in 
-                    df[df[names_column].str.match(name)]['Match'].tolist() 
-                    else 0 for name in subqueries ]
-    group_copies = [ len(df[df[names_column].str.match(name)]) if '-' not in 
-                    df[df[names_column].str.match(name)]['Match'].tolist() 
-                    else 0 for name in subgroups ]
-    #print(query_copies)
-    #print(group_copies)
+    query_copies = [len(df[df[names_column].str.match(name)]) if '-' not in
+                    df[df[names_column].str.match(name)]['Match'].tolist()
+                    else 0 for name in subqueries]
+    group_copies = [len(df[df[names_column].str.match(name)]) if '-' not in
+                    df[df[names_column].str.match(name)]['Match'].tolist()
+                    else 0 for name in subgroups]
+    print(query_copies)
+    print(group_copies)
     try:
         mean = np.mean(group_copies)
         std = np.std(group_copies)

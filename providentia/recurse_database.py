@@ -28,18 +28,18 @@ class recurse_database():
         self.init_header = init_header.split()
         self.headers = headers
         self.names = names_column
-        self.listener = recurse_listener()
         self.slices = init_slice
+        self.listener = recurse_listener()
         # initialise the listerner with next()
         next(self.listener)
         self.max_depth = max_depth
-        self.current_depth = 0
 
     def __iter__(self):
         return self
 
     def __next__(self):
-        return self.recurse(self.df, self.slices, self.init_header, self.parent_df)
+        return self.recurse(self.df, self.slices, self.init_header,
+                            self.parent_df)
 
     def __level__(self):
         return self.headerlist, self.slicelist
@@ -49,23 +49,23 @@ class recurse_database():
         return sub_df
 
     def get_headers(self, current_headers):
-        """Using a list of headers, remove from total set and return a new 
+        """Using a list of headers, remove from total set and return a new
         set with one more header"""
-        num_headers = len(current_headers)
         #print(current_headers)
         headers = self.headers
-        headers = [ head for head in headers if not head in current_headers ]
+        headers = [head for head in headers if head not in current_headers]
         #print("new")
         #print(headers)
         # currently uses permutations, which is a point of randomisation
         # avoid randomisation?
-        header_permutations = [ header for header in itertools.permutations(headers, 1) ]
+        header_permutations = [header for header in
+                               itertools.permutations(headers, 1)]
         #print(header_permutations)
         return header_permutations
         
     def recurse(self, df, slices, current_headers, parent_df=None):
         headers = self.get_headers(current_headers)
-        print("headers")
+        #print("headers")
         #print(headers)
         #ident = random.random()
         #print("new_")
@@ -76,18 +76,22 @@ class recurse_database():
             print(new_headers)
             print(slices)
             for subgroup in subgroups:
-                print(subgroup)
+                print(new_headers)
+                print("subgroup: " + subgroup)
                 slices[new_headers[-1]] = subgroup
+                print(slices)
                 # here send to recurse_listener coroutine 
                 # this will pause execution and handle results
                 # resume upon completed yield loop
                 try:
-                    sub_df = self.slice_df(df, new_headers[-1], subgroup) 
+                    sub_df = self.slice_df(df, new_headers[-1], subgroup)
                     #print(sub_df)
                     # check for "Match", results presumed uninteresting without
-                    if "Match" in new_headers and not set(sub_df['Match'].values) == set('-'):
-                        df, df_type, result = self.call_listener(df, slices, new_headers,
-                                                     parent_df)
+                    if ("Match" in new_headers and
+                       not set(sub_df['Match'].values) == set('-')):
+                        df, df_type, result = self.call_listener(df, slices,
+                                                                 new_headers,
+                                                                 parent_df)
                     else:
                         result = None
                         df_type = None
@@ -98,13 +102,15 @@ class recurse_database():
                     # the pre-sliced rather than from prev recurse
                     sub_df = df
                     # check for "Match", results presumed uninteresting without
-                    if "Match" in new_headers and not set(sub_df['Match'].values) == set('-'):
-                        df, df_type, result = self.call_listener(df, slices, new_headers,
-                                                     parent_df)
+                    if ("Match" in new_headers and
+                       not set(sub_df['Match'].values) == set('-')):
+                        df, df_type, result = self.call_listener(df, slices,
+                                                                 new_headers,
+                                                                 parent_df)
                     else:
                         result = None
                     if result:
-                            self.q.put(result)
+                        self.q.put(result)
                     # remove last slice. Necessary?
                     del slices[new_headers[-1]]  
                     if df_type == "num":
@@ -127,7 +133,8 @@ class recurse_database():
     def call_listener(self,df, slices, new_headers, parent_df):
         """Calls the recurse_listener module"""
         valid_df, df_type = self.transform_dataframe(df, new_headers[-1])
-        result = self.listener.send((valid_df, slices, new_headers, df_type, parent_df))
+        result = self.listener.send((valid_df, slices, new_headers, df_type,
+                                     parent_df))
         return valid_df, df_type, result
 
     def transform_dataframe(self, df, query_group):
@@ -151,7 +158,7 @@ class recurse_database():
                 #print("bool")
                 raise ValueError
             # attempt to convert query column to numeric values
-            df_valid[query_group] = pd.to_numeric(df_valid[query_group], 
+            df_valid[query_group] = pd.to_numeric(df_valid[query_group],
                                                   errors="raise")
             # remove N/A from column
             df_valid.dropna(subset=[query_group], inplace=True)

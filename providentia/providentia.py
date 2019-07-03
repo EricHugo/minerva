@@ -21,6 +21,7 @@ try:
 except ImportError:
     from providentia.recurse_database import recurse_database
 
+
 def _worker(df, init_header, headers, q, names_column, threads, depth):
     # here we determine how to recurse down the list
     # having received a init_header we start with significane testing it
@@ -33,8 +34,8 @@ def _worker(df, init_header, headers, q, names_column, threads, depth):
     pool = mp.Pool(processes=threads)
     jobs = []
     for subgroup in subgroups:
-        job = pool.apply_async(_init_run, (df, init_header, headers, subgroup, 
-                                names_column, q))
+        job = pool.apply_async(_init_run, (df, init_header, headers, subgroup,
+                                           names_column, q))
         #job = pool.apply_async(__dummy, (subgroup, q))
         jobs.append(job)
         #print('started')
@@ -50,7 +51,8 @@ def _init_run(df, init_header, headers, init_slice, names_column, q):
     within the _worker child process."""
     sub_df = df[df[init_header].str.match(init_slice)]
     recurse_d = recurse_database(sub_df, init_header, headers, OrderedDict(
-                                {init_header: init_slice}), names_column, df, q=q)
+                                 {init_header: init_slice}), names_column, df,
+                                 q=q)
     recurse_d.__next__()
     return
 
@@ -134,18 +136,18 @@ def main():
             Essentially performs an all v. all comparison.""")
 
     parser.add_argument("minervaDB", help="A database file produced by minerva")
-    parser.add_argument("names_column", help="""The name of the column containing 
+    parser.add_argument("names_column", help="""The name of the column containing
                         unique identifiers per organism""")
-    parser.add_argument("-c", "--columns", help="""Specify which columns will be 
+    parser.add_argument("-c", "--columns", help="""Specify which columns will be
                         included in the analysis""")
     parser.add_argument("-e", "--entry_columns", help="""Specify which columns to
                         slice by initially.""")
     parser.add_argument("-d", "--depth", default=None, type=int,
                         help="""Specify maximum recursive depth that will be
                         descended""")
-    parser.add_argument("-o", "--outfile", type=str, default='-', help="""Specify
-                        outfile for results writing. By default writes to stdout.""")
-    parser.add_argument("-t", "--threads", default=1, type=int, help="""Define 
+    parser.add_argument("-o", "--outfile", type=str, default='-', help="Specify \
+                        outfile for results writing. By default writes to stdout.")
+    parser.add_argument("-t", "--threads", default=1, type=int, help="""Define
                         number of threads to be used""")
 
     args = parser.parse_args()
@@ -168,16 +170,14 @@ def main():
     manager = mp.Manager()
     q = manager.Queue()
     # init pool as non-daemon to allow for spawning new child processes within
-    pool = NoDaemonProcessPool(processes = args.threads + 1)
+    pool = NoDaemonProcessPool(processes=args.threads + 1)
     listener = pool.apply_async(_listener, (q, args.outfile))
 
     jobs = []
     opt_threads = optimal_ints(args.threads, len(entry_set))
-    print(opt_threads)
-    print(len(opt_threads))
     for init_header, threads in zip(entry_set, opt_threads):
-        job = pool.apply_async(_worker, (df_minerva_all, init_header, headers, q, 
-                                         names_column, threads, args.depth))
+        job = pool.apply_async(_worker, (df_minerva_all, init_header, headers,
+                                         q, names_column, threads, args.depth))
         jobs.append(job)
         #break
 
