@@ -52,7 +52,7 @@ except FileExistsError:
     pass
 
 def _worker(fasta, seqType, raw_name, hmm, q, gen_directory, tax, evalue=1e-30,
-            crispr=False, outfile=None):
+            crispr=False, blast_db=None):
     #tax = parseTaxonomy()
     if seqType == "faa":
         faa = fasta
@@ -136,7 +136,7 @@ def _worker(fasta, seqType, raw_name, hmm, q, gen_directory, tax, evalue=1e-30,
         if neighbours:
             for gene, neighbourhood in neighbours.items():
                 print(gene)
-                neighbours = get_neighbour_products(faa, fasta, neighbourhood, gene, q)
+                neighbours = get_neighbour_products(faa, fasta, neighbourhood, gene, q, blast_db)
                 gene_matches[gene].append(extract_protein(faa, gene))
                 gene_matches[gene].append(neighbours)
                 print(gene_matches)
@@ -148,7 +148,7 @@ def _worker(fasta, seqType, raw_name, hmm, q, gen_directory, tax, evalue=1e-30,
                     c_out=c_out)
     return
 
-def get_neighbour_products(faa, fasta, neighbours, gene, q):
+def get_neighbour_products(faa, fasta, neighbours, gene, q, blast_db):
     # neighbour_OGs = []
     print(neighbours)
     for each in ['forward', 'reverse']:
@@ -162,7 +162,7 @@ def get_neighbour_products(faa, fasta, neighbours, gene, q):
             neighbour_faa = extract_protein(faa, neighbours[each + '_neighbour'],
                                             write=True)
             print(neighbour_faa)
-        if not neighbour_product:
+        if not neighbour_product and blast_db:
             cprint(gene, "magenta")
             print(neighbours[each + '_neighbour'])
             print(faa)
@@ -170,7 +170,7 @@ def get_neighbour_products(faa, fasta, neighbours, gene, q):
                                             write=True)
             # new func that takes extracted protein and diamond
             # against uniprot => extracts protein name
-            blast = diamondBlast('/fast/uniprot.dmnd', '_')
+            blast = diamondBlast(blast_db, '_')
             cprint(neighbour_faa, "magenta")
             try:
                 blast.perform_blast(neighbour_faa, '--outfmt', '6',
@@ -455,6 +455,8 @@ def main():
             be matched within the selection column""")
     parser.add_argument("--threads", required=False, default=1, type=int,
                         help="""Number of threads to be used concurrently""")
+    parser.add_argument("--db", required=False, default=None, help="""Diamond
+                        database to blast protein function against.""")
     args = parser.parse_args()
 
     try:
@@ -486,7 +488,8 @@ def main():
             i.append(None)
         job = pool.apply_async(_worker, (i[0], i[1], i[2], args.hmms, q,
                                          args.gendir, tax),
-                               {"crispr":args.crispr})
+                                         {"crispr":args.crispr,
+                                          "blast_db":args.db})
         jobs.append(job)
     # get() all processes to catch errors
     for job in jobs:
