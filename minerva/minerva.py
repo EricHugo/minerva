@@ -170,7 +170,7 @@ def get_neighbour_products(faa, fasta, neighbours, gene, q):
                                             write=True)
             # new func that takes extracted protein and diamond
             # against uniprot => extracts protein name
-            blast = diamondBlast('~/share/diamond-db', '_')
+            blast = diamondBlast('/fast/uniprot.dmnd', '_')
             cprint(neighbour_faa, "magenta")
             try:
                 blast.perform_blast(neighbour_faa, '--outfmt', '6',
@@ -179,7 +179,11 @@ def get_neighbour_products(faa, fasta, neighbours, gene, q):
             except (TypeError, IndexError):
                 out = [fasta, faa, neighbours[each + '_neighbour']]
                 cprint(out, "red")
-            neighbours[each + '_product'] = ''.join(blast.get_protein_name())
+            try:
+                neighbours[each + '_product'] = ''.join(blast.get_protein_name())
+            except TypeError:
+                cprint(blast.get_protein_name(), "red")
+                neighbours[each + '_product'] = None
         else:
             neighbours[each + '_product'] = ''.join(neighbour_product)
         neighbours[each + '_path'] = os.path.abspath(neighbour_faa)
@@ -492,7 +496,7 @@ def main():
     pool.close()
     pool.join()
     # finally cluster neighbours
-    clustering = clusterProteins(args.outfile)
+    clustering = clusterProteins(args.outfile, threads=args.threads)
     out = clustering.mcl_cluster()
     clusters = clustering.assign_groups(out)
     clustering.attribute_COGs(clusters)
