@@ -22,17 +22,6 @@ class clusterProteins():
         self.blast_all(paths)
         self._format_blast()
         return
-        with open(result_tab) as f:
-            self.result_tab = [entry.strip().split('\t') for entry in f]
-        for n, entry in enumerate(self.result_tab[1]):
-            if entry == 'Forward_path':
-                fn = n
-            elif entry == 'Reverse_path':
-                rn = n
-        self.forward_paths = {entry[fn - 4]: entry[fn] for entry in
-                              self.result_tab}
-        self.reverse_paths = {entry[rn - 4]: entry[rn] for entry in
-                              self.result_tab}
 
     def _format_blast(self):
         labels = ["Gene", "Gene_comp", "E-value"]
@@ -102,7 +91,7 @@ class clusterProteins():
             outfile = "mcl_minvera.tmp.out"
         self.blast_df.to_csv('test_mcl.csv', sep='\t', index=False, header=False)
         # define outfile also
-        mcl_command = ['mcl', 'test_mcl.csv', '--abc', '-o', outfile, '-I', '1.6']
+        mcl_command = ['mcl', 'test_mcl.csv', '--abc', '-o', outfile, '-I', '1.4']
         if args:
             mcl_command.append(args)
         print(mcl_command)
@@ -110,7 +99,7 @@ class clusterProteins():
         return outfile
 
     def assign_groups(self, infile, name='COG'):
-        # take len of cluster file, add 0's as needed
+        # take len of cluster file, add 0's as needed + one extra
         # e.g. 001 ...
         clusters = {}
         with open(infile) as mcl_clusters:
