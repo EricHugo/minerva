@@ -20,12 +20,17 @@ class recurse_database():
         self.q = q
         try:
             if not parent_df:
-                self.df = self.slice_df(df, init_header, init_slice)
+                print(init_slice)
+                self.df = self.slice_df(df, init_header, init_slice[init_header])
                 self.parent_df = df
         except ValueError:
+            print("ValueError for parent_df")
+            print(init_header)
+            print(init_slice)
             self.df = df
             self.parent_df = df
         self.init_header = init_header.split()
+        print(self.init_header)
         self.headers = headers
         self.names = names_column
         self.slices = init_slice
@@ -33,6 +38,8 @@ class recurse_database():
         # initialise the listerner with next()
         next(self.listener)
         self.max_depth = max_depth
+        # ever desirable to significance the first slice?
+        #self.call_listener(self.df, init_slice, self.init_header, self.parent_df)
 
     def __iter__(self):
         return self
@@ -45,7 +52,10 @@ class recurse_database():
         return self.headerlist, self.slicelist
 
     def slice_df(self, df, column, query):
+        print("slice")
+        print(column)
         sub_df = df[df[column].str.match(query)]
+        print(sub_df)
         return sub_df
 
     def get_headers(self, current_headers):
@@ -84,11 +94,12 @@ class recurse_database():
                 # this will pause execution and handle results
                 # resume upon completed yield loop
                 try:
+                    print(df)
                     sub_df = self.slice_df(df, new_headers[-1], subgroup)
-                    #print(sub_df)
+                    print("sub_df")
+                    print(sub_df)
                     # check for "Match", results presumed uninteresting without
-                    if ("Match" in new_headers and
-                       not set(sub_df['Match'].values) == set('-')):
+                    if not set(sub_df['Match'].values) == set('-'):
                         df, df_type, result = self.call_listener(df, slices,
                                                                  new_headers,
                                                                  parent_df)
@@ -133,6 +144,10 @@ class recurse_database():
     def call_listener(self,df, slices, new_headers, parent_df):
         """Calls the recurse_listener module"""
         valid_df, df_type = self.transform_dataframe(df, new_headers[-1])
+        print(parent_df)
+        print("valid_df")
+        print(valid_df)
+        print(df_type)
         result = self.listener.send((valid_df, slices, new_headers, df_type,
                                      parent_df))
         return valid_df, df_type, result
@@ -146,6 +161,7 @@ class recurse_database():
             ## add skip for when query is '-'
             # is necessary as long as we rely on on exception to determine
             # string / numeric
+            print(query_group)
             try:
                 df_valid = df[~df[query_group].str.match('-')].copy()
             except AttributeError:
