@@ -26,7 +26,8 @@ def recurse_listener():
         #print(headers)
         if df_type == "num":
             try:
-                result = pandas_ttest(parent_df, headers[-1], slices[headers[-2]], headers[-2])
+                result = pandas_ttest(parent_df, headers[-1], slices[headers[-2]],
+                                      headers[-2])
                 if result:
                     result = (result, slices)
             except KeyError:
@@ -48,7 +49,8 @@ def string_counts(df, sub_df, group, query_group, names_column='Name'):
     compares the query_group to others in group to asses if it is
     outside 1 std dev."""
     #all_values = {}
-    #print(df)
+    print("string counts")
+    print(df)
     try:
         subgroups = df[names_column].unique()
     except TypeError:
@@ -61,13 +63,14 @@ def string_counts(df, sub_df, group, query_group, names_column='Name'):
     if len(subgroups) <= 1:
         return
     #print("sub")
-    #print(sub_df)
+    print(sub_df)
     subqueries = sub_df[names_column].unique()
     subgroups = [subgroup for subgroup in subgroups
                  if subgroup not in subqueries]
+    print("subgroups: ")
     print(subgroups)
-    print(subqueries)
     ## here count "-" in match column as 0
+    ## but also, why?
     query_copies = [len(df[df[names_column].str.match(name)]) if '-' not in
                     df[df[names_column].str.match(name)]['Match'].tolist()
                     else 0 for name in subqueries]
@@ -77,14 +80,14 @@ def string_counts(df, sub_df, group, query_group, names_column='Name'):
     print(query_copies)
     print(group_copies)
     try:
-        mean = np.mean(group_copies)
-        std = np.std(group_copies)
+        mean = np.mean(group_copies + query_copies)
+        std = np.std(group_copies + query_copies)
         query_mean = np.mean(query_copies)
     except FloatingPointError:
         return
-    #print(mean, end=' ')
-    #print(std)
-    #print(query_mean)
+    print(mean, end=' ')
+    print(std, end=' ')
+    print(query_mean)
     if query_mean > mean + std or query_mean < mean - std:
         return (query_mean, mean, std)
 
