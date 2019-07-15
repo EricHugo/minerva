@@ -44,13 +44,14 @@ def recurse_listener():
                 result = (result, slices)
     return result
 
-def string_counts(df, sub_df, group, query_group, names_column='Name'):
+def string_counts(parent_df, df, group, query_group, names_column='Name'):
     """Attempts to produce string counts per name in names_column
     compares the query_group to others in group to asses if it is
     outside 1 std dev."""
-    #all_values = {}
-    print("string counts")
+    print("copy counts")
     print(df)
+    print(group)
+    print(query_group)
     try:
         subgroups = df[names_column].unique()
     except TypeError:
@@ -62,6 +63,7 @@ def string_counts(df, sub_df, group, query_group, names_column='Name'):
     # else skip
     if len(subgroups) <= 1:
         return
+    sub_df = slice_dataframe(df, group, query_group)
     #print("sub")
     print(sub_df)
     subqueries = sub_df[names_column].unique()
@@ -69,7 +71,7 @@ def string_counts(df, sub_df, group, query_group, names_column='Name'):
                  if subgroup not in subqueries]
     print("subgroups: ")
     print(subgroups)
-    ## here count "-" in match column as 0
+    ## here count "-" in column as 0
     ## but also, why?
     query_copies = [len(df[df[names_column].str.match(name)]) if '-' not in
                     df[df[names_column].str.match(name)]['Match'].tolist()
