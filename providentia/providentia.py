@@ -50,8 +50,8 @@ def _init_run(df, init_header, headers, init_slice, names_column, q):
     """Initiates the recurse run, serves to allow multi-processing from 
     within the _worker child process."""
     sub_df = df[df[init_header].str.match(init_slice)]
-    recurse_d = recurse_database(sub_df, init_header, headers, OrderedDict(
-                                 {init_header: init_slice}), names_column, df,
+    recurse_d = recurse_database(df, init_header, headers, OrderedDict(
+                                 {init_header: init_slice}), names_column,
                                  q=q)
     recurse_d.__next__()
     return
