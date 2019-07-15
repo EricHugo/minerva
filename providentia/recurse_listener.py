@@ -39,12 +39,12 @@ def recurse_listener():
             #print("str")
             print(headers)
             print(slices)
-            result = string_counts(parent_df, df, headers[-1], slices[headers[-1]])
+            result = copy_numbers(parent_df, df, headers[-1], slices[headers[-1]])
             if result:
                 result = (result, slices)
     return result
 
-def string_counts(parent_df, df, group, query_group, names_column='Name'):
+def copy_numbers(parent_df, df, group, query_group, names_column='Name'):
     """Attempts to produce string counts per name in names_column
     compares the query_group to others in group to asses if it is
     outside 1 std dev."""
@@ -56,7 +56,7 @@ def string_counts(parent_df, df, group, query_group, names_column='Name'):
         subgroups = df[names_column].unique()
     except TypeError:
         # not sure why typeerror. Empty df?
-        cprint("string_counts() TypeError", "red")
+        cprint("copy_numbers() TypeError", "red")
         print(df)
         return
     # check if there are enough values to do any population comps
