@@ -44,6 +44,19 @@ def recurse_listener():
                 result = (result, slices)
     return result
 
+def num_rows_by_names(df, names, column, skip_nomatch=True):
+    # TODO: Enable inclusion of no matches by skip_nomatch=False
+    # TODO: Define "Match" column bar var
+    copies = [len(df[df[column].str.match(name)]) if '-' not in
+              df[df[column].str.match(name)]['Match'].tolist()
+              else 0 for name in names]
+    return copies
+
+def subgroup(df, sub_df, column, query_group, names_column='Name'):
+    all_groups = df[column].unique()
+    if all_groups <= 1:
+        return
+    return
 
 def copy_numbers(parent_df, df, group, query_group, names_column='Name'):
     """Attempts to produce string counts per name in names_column
@@ -75,12 +88,8 @@ def copy_numbers(parent_df, df, group, query_group, names_column='Name'):
     ## here count "-" in column as 0
     ## but also, why?
     # try str.value_counts()
-    query_copies = [len(df[df[names_column].str.match(name)]) if '-' not in
-                    df[df[names_column].str.match(name)]['Match'].tolist()
-                    else 0 for name in subqueries]
-    group_copies = [len(df[df[names_column].str.match(name)]) if '-' not in
-                    df[df[names_column].str.match(name)]['Match'].tolist()
-                    else 0 for name in subgroups]
+    query_copies = num_rows_by_names(df, subqueries, names_column)
+    group_copies = num_rows_by_names(df, subgroups, names_column)
     print(query_copies)
     print(group_copies)
     try:
