@@ -87,7 +87,8 @@ class recurse_database():
             print(slices)
             for subgroup in subgroups:
                 print(new_headers)
-                print("subgroup: " + subgroup)
+                print("subgroup: ", end=' ')
+                print(subgroup)
                 slices[new_headers[-1]] = subgroup
                 print(slices)
                 # here send to recurse_listener coroutine 

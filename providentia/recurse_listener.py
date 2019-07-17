@@ -44,6 +44,7 @@ def recurse_listener():
                 result = (result, slices)
     return result
 
+
 def copy_numbers(parent_df, df, group, query_group, names_column='Name'):
     """Attempts to produce string counts per name in names_column
     compares the query_group to others in group to asses if it is
@@ -73,6 +74,7 @@ def copy_numbers(parent_df, df, group, query_group, names_column='Name'):
     print(subgroups)
     ## here count "-" in column as 0
     ## but also, why?
+    # try str.value_counts()
     query_copies = [len(df[df[names_column].str.match(name)]) if '-' not in
                     df[df[names_column].str.match(name)]['Match'].tolist()
                     else 0 for name in subqueries]
@@ -82,8 +84,8 @@ def copy_numbers(parent_df, df, group, query_group, names_column='Name'):
     print(query_copies)
     print(group_copies)
     try:
-        mean = np.mean(group_copies + query_copies)
-        std = np.std(group_copies + query_copies)
+        mean = np.mean(group_copies)
+        std = np.std(group_copies)
         query_mean = np.mean(query_copies)
     except FloatingPointError:
         return
