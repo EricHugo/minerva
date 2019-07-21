@@ -39,7 +39,7 @@ def recurse_listener():
             #print("str")
             print(headers)
             print(slices)
-            result = copy_numbers(parent_df, df, headers[-1], slices[headers[-1]])
+            result = string_counts(parent_df, df, headers[-1], slices[headers[-1]])
             if result:
                 result = (result, slices)
     return result
@@ -47,6 +47,9 @@ def recurse_listener():
 def num_rows_by_names(df, names, column, skip_nomatch=True):
     # TODO: Enable inclusion of no matches by skip_nomatch=False
     # TODO: Define "Match" column bar var
+    ## here count "-" in column as 0
+    ## but also, why?
+    # try str.value_counts()
     copies = [len(df[df[column].str.match(name)]) if '-' not in
               df[df[column].str.match(name)]['Match'].tolist()
               else 0 for name in names]
@@ -58,7 +61,8 @@ def subgroup(df, sub_df, column, query_group, names_column='Name'):
         return
     return
 
-def copy_numbers(parent_df, df, group, query_group, names_column='Name'):
+def string_counts(parent_df, df, group, query_group, names_column='Name',
+                 kind='copy'):
     """Attempts to produce string counts per name in names_column
     compares the query_group to others in group to asses if it is
     outside 1 std dev."""
@@ -85,11 +89,12 @@ def copy_numbers(parent_df, df, group, query_group, names_column='Name'):
                  if subgroup not in subqueries]
     print("subgroups: ")
     print(subgroups)
-    ## here count "-" in column as 0
-    ## but also, why?
-    # try str.value_counts()
-    query_copies = num_rows_by_names(df, subqueries, names_column)
-    group_copies = num_rows_by_names(df, subgroups, names_column)
+    analysis = copy_counts if kind == 'copy' else num_rows_by_names
+    return analysis(df, subqueries, subgroups, names_column)
+
+def copy_counts(df, queries, out_queries, names_column='Name'):
+    query_copies = num_rows_by_names(df, queries, names_column)
+    group_copies = num_rows_by_names(df, out_queries, names_column)
     print(query_copies)
     print(group_copies)
     try:
