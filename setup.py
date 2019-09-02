@@ -4,7 +4,7 @@ with open('README.rst', mode='r') as f:
     l_description = f.read()
 
 setup(name='minerva',
-      version='0.1.0',
+      version='0.1.0rc1',
       description='Systematic inference of possible protein function',
       long_description=l_description,
       url='https://github.com/EricHugo/minerva',
