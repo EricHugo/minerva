@@ -66,7 +66,7 @@ def string_counts(parent_df, df, group, query_group, names_column='Name',
     """Attempts to produce string counts per name in names_column
     compares the query_group to others in group to asses if it is
     outside 1 std dev."""
-    print("copy counts")
+    print("string counts")
     print(df)
     print(group)
     print(query_group)
@@ -93,6 +93,10 @@ def string_counts(parent_df, df, group, query_group, names_column='Name',
     return analysis(df, subqueries, subgroups, names_column)
 
 def copy_counts(df, queries, out_queries, names_column='Name'):
+    """Function asks how many copies of Match by Name exists in query
+    vs outside query. Significance returned if query median is +/-1 std
+    from outside query median."""
+    print("copy_counts")
     query_copies = num_rows_by_names(df, queries, names_column)
     group_copies = num_rows_by_names(df, out_queries, names_column)
     print(query_copies)
