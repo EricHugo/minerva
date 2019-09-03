@@ -127,7 +127,7 @@ def normalised_query_counts(df, query, out_queries, names_column='Name'):
     try:
         q_prop = sum(query_copies) / len(query_copies)
         g_prop = sum(group_copies) / len(group_copies)
-        stat, pval = proportion.proportions_ztest(q_prop, len(query_copies), g_prop)
+        stat, pval = proportion.proportions_ztest(sum(query_copies), len(query_copies), g_prop)
     except (ZeroDivisionError, FloatingPointError) as E:
         cprint("norm error", "red")
         print(E)
