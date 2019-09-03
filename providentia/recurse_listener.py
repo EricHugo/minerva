@@ -3,6 +3,7 @@
 from scipy import stats
 from collections import OrderedDict
 from termcolor import cprint
+from statsmodels.stats import proportion
 import sys
 import pandas as pd
 import numpy as np
@@ -62,7 +63,7 @@ def subgroup(df, sub_df, column, query_group, names_column='Name'):
     return
 
 def string_counts(parent_df, df, group, query_group, names_column='Name',
-                 kind='copy'):
+                 kind=''):
     """Attempts to produce string counts per name in names_column
     compares the query_group to others in group to asses if it is
     outside 1 std dev."""
@@ -89,7 +90,7 @@ def string_counts(parent_df, df, group, query_group, names_column='Name',
                  if subgroup not in subqueries]
     print("subgroups: ")
     print(subgroups)
-    analysis = copy_counts if kind == 'copy' else num_rows_by_names
+    analysis = copy_counts if kind == 'copy' else normalised_query_counts
     return analysis(df, subqueries, subgroups, names_column)
 
 def copy_counts(df, queries, out_queries, names_column='Name'):
@@ -112,6 +113,30 @@ def copy_counts(df, queries, out_queries, names_column='Name'):
     print(query_mean)
     if query_mean > mean + std or query_mean < mean - std:
         return (query_mean, mean, std)
+
+def normalised_query_counts(df, query, out_queries, names_column='Name'):
+    """Function asks how many matches are found under a query vs outside 
+    queries normalised by total number of query and outside queries. Additional
+    copies (matches under same names_column) are ignored."""
+    # need to get all non-matches from query also
+    print("norm")
+    query_copies = [1 if not num == 0 else 0 for num in num_rows_by_names(df, query, names_column)]
+    group_copies = [1 if not num == 0 else 0 for num in num_rows_by_names(df, out_queries, names_column)]
+    print(query_copies)
+    print(group_copies)
+    try:
+        q_prop = sum(query_copies) / len(query_copies)
+        g_prop = sum(group_copies) / len(group_copies)
+        stat, pval = proportion.proportions_ztest(q_prop, len(query_copies), g_prop)
+    except (ZeroDivisionError, FloatingPointError) as E:
+        cprint("norm error", "red")
+        print(E)
+        return
+    print(stat, pval)
+    if pval < 0.05:
+        print(pval)
+        return (q_prop, g_prop, len(query_copies))
+    return
 
 def slice_dataframe(df, group, subgroup):
     """Takes a dataframe, group and subgroup of group.
