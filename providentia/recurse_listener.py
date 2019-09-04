@@ -10,7 +10,7 @@ import numpy as np
 import time
 import warnings
 
-np.seterr(all='raise')
+np.seterr(all='ignore')
 
 def recurse_listener():
     """Coroutine to recurse_database.py, listens to sent objects containing
@@ -120,17 +120,26 @@ def normalised_query_counts(df, query, out_queries, names_column='Name'):
     copies (matches under same names_column) are ignored."""
     # need to get all non-matches from query also
     print("norm")
-    query_copies = [1 if not num == 0 else 0 for num in num_rows_by_names(df, query, names_column)]
-    group_copies = [1 if not num == 0 else 0 for num in num_rows_by_names(df, out_queries, names_column)]
+    query_copies = [1 if not num == 0 else 0 for num in
+                    num_rows_by_names(df, query, names_column)]
+    group_copies = [1 if not num == 0 else 0 for num in
+                    num_rows_by_names(df, out_queries, names_column)]
     print(query_copies)
     print(group_copies)
     try:
         q_prop = sum(query_copies) / len(query_copies)
+    except ZeroDivisionError:
+        q_prop = 0
+    try:
         g_prop = sum(group_copies) / len(group_copies)
-        stat, pval = proportion.proportions_ztest(sum(query_copies), len(query_copies), g_prop)
-    except (ZeroDivisionError, FloatingPointError) as E:
+    except ZeroDivisionError:
+        g_prop = 0
+    try:
+        stat, pval = proportion.proportions_ztest(sum(query_copies),
+                                                  len(query_copies), g_prop)
+    except FloatingPointError as E:
         cprint("norm error", "red")
-        print(E)
+        #print(E)
         return
     print(stat, pval)
     if pval < 0.05:
