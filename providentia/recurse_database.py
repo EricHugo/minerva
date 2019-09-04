@@ -33,6 +33,7 @@ class recurse_database():
         print(self.init_header)
         self.headers = headers
         self.names = names_column
+        print(self.names)
         self.slices = init_slice
         self.listener = recurse_listener()
         # initialise the listerner with next()
@@ -63,9 +64,8 @@ class recurse_database():
         set with one more header"""
         #print(current_headers)
         headers = self.headers
-        headers = [head for head in headers if head not in current_headers]
-        #print("new")
-        #print(headers)
+        headers = [head for head in headers if head not in current_headers and 
+                   not head == self.names]
         # currently uses permutations, which is a point of randomisation
         # avoid randomisation?
         header_permutations = [header for header in
