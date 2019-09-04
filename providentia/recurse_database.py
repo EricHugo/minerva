@@ -15,8 +15,8 @@ except ImportError:
     from .recurse_listener import recurse_listener
 
 class recurse_database():
-    def __init__(self, df, init_header, headers, init_slice, names_column, 
-                 parent_df=None, max_depth=0, q=None):
+    def __init__(self, df, init_header, headers, init_slice, names_column,
+                 match_column, parent_df=None, max_depth=0, q=None):
         self.q = q
         try:
             if not parent_df:
@@ -33,6 +33,8 @@ class recurse_database():
         print(self.init_header)
         self.headers = headers
         self.names = names_column
+        self.matches = match_column
+        self.illegal_cols = set((self.names, self.matches))
         print(self.names)
         self.slices = init_slice
         self.listener = recurse_listener()
@@ -53,10 +55,10 @@ class recurse_database():
         return self.headerlist, self.slicelist
 
     def slice_df(self, df, column, query):
-        print("slice")
-        print(column)
+        #print("slice")
+        #print(column)
         sub_df = df[df[column].str.match(query)]
-        print(sub_df)
+        #print(sub_df)
         return sub_df
 
     def get_headers(self, current_headers):
@@ -65,7 +67,7 @@ class recurse_database():
         #print(current_headers)
         headers = self.headers
         headers = [head for head in headers if head not in current_headers and 
-                   not head == self.names]
+                   head not in self.illegal_cols]
         # currently uses permutations, which is a point of randomisation
         # avoid randomisation?
         header_permutations = [header for header in

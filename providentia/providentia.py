@@ -22,7 +22,8 @@ except ImportError:
     from providentia.recurse_database import recurse_database
 
 
-def _worker(df, init_header, headers, q, names_column, threads, depth):
+def _worker(df, init_header, headers, q, names_column, match_column,
+            threads, depth):
     # here we determine how to recurse down the list
     # having received a init_header we start with significane testing it
     # then recurse down once level for each subgroup within init_header
@@ -35,7 +36,7 @@ def _worker(df, init_header, headers, q, names_column, threads, depth):
     jobs = []
     for subgroup in subgroups:
         job = pool.apply_async(_init_run, (df, init_header, headers, subgroup,
-                                           names_column, q))
+                                           names_column, match_column, q))
         #job = pool.apply_async(__dummy, (subgroup, q))
         jobs.append(job)
         #print('started')
@@ -46,13 +47,14 @@ def _worker(df, init_header, headers, q, names_column, threads, depth):
     cprint("done?", "red")
     return 
 
-def _init_run(df, init_header, headers, init_slice, names_column, q):
+def _init_run(df, init_header, headers, init_slice, names_column, match_column,
+              q):
     """Initiates the recurse run, serves to allow multi-processing from 
     within the _worker child process."""
     sub_df = df[df[init_header].str.match(init_slice)]
     recurse_d = recurse_database(df, init_header, headers, OrderedDict(
                                  {init_header: init_slice}), names_column,
-                                 q=q)
+                                 match_column, q=q)
     recurse_d.__next__()
     return
 
@@ -138,6 +140,9 @@ def main():
     parser.add_argument("minervaDB", help="A database file produced by minerva")
     parser.add_argument("names_column", help="""The name of the column containing
                         unique identifiers per organism""")
+    parser.add_argument("-m", "--match_column", type=str, default="Match",
+                        help="The name of the column containing target matches. \
+                              Default=\"Match\"")
     parser.add_argument("-c", "--columns", help="""Specify which columns will be
                         included in the analysis""")
     parser.add_argument("-e", "--entry_columns", help="""Specify which columns to
@@ -165,6 +170,7 @@ def main():
             entry_set = entry.readline().strip().split('\t')
     df_minerva_all = pd.read_csv(args.minervaDB, sep='\t')
     names_column = args.names_column
+    match_column = args.match_column
 
     # define tasks to be done, seperate each into multiprocessing
     manager = mp.Manager()
@@ -177,7 +183,8 @@ def main():
     opt_threads = optimal_ints(args.threads, len(entry_set))
     for init_header, threads in zip(entry_set, opt_threads):
         job = pool.apply_async(_worker, (df_minerva_all, init_header, headers,
-                                         q, names_column, threads, args.depth))
+                                         q, names_column, match_column, threads,
+                                         args.depth))
         jobs.append(job)
         #break
 
