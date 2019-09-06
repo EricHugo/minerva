@@ -16,7 +16,7 @@ except ImportError:
 
 class recurse_database():
     def __init__(self, df, init_header, headers, init_slice, names_column,
-                 match_column, parent_df=None, max_depth=0, q=None):
+                 match_column, min_length, parent_df=None, max_depth=0, q=None):
         self.q = q
         try:
             if not parent_df:
@@ -34,6 +34,7 @@ class recurse_database():
         self.headers = headers
         self.names = names_column
         self.matches = match_column
+        self.min_length = min_length
         self.illegal_cols = set((self.names, self.matches))
         print(self.names)
         self.slices = init_slice
@@ -97,10 +98,12 @@ class recurse_database():
                 # this will pause execution and handle results
                 # resume upon completed yield loop
                 try:
-                    print(df)
+                    #print(df)
                     sub_df = self.slice_df(df, new_headers[-1], subgroup)
-                    print("sub_df")
-                    print(sub_df)
+                    if len(sub_df) < self.min_length:
+                        break
+                    #print("sub_df")
+                    #print(sub_df)
                     # check for "Match", results presumed uninteresting without
                     if not set(sub_df['Match'].values) == set('-'):
                         df, df_type, result = self.call_listener(df, slices,
@@ -116,8 +119,7 @@ class recurse_database():
                     # the pre-sliced rather than from prev recurse
                     sub_df = df
                     # check for "Match", results presumed uninteresting without
-                    if ("Match" in new_headers and
-                       not set(sub_df['Match'].values) == set('-')):
+                    if not set(sub_df['Match'].values) == set('-'):
                         df, df_type, result = self.call_listener(df, slices,
                                                                  new_headers,
                                                                  parent_df)
@@ -126,7 +128,7 @@ class recurse_database():
                     if result:
                         self.q.put(result)
                     # remove last slice. Necessary?
-                    del slices[new_headers[-1]]  
+                    del slices[new_headers[-1]]
                     if df_type == "num":
                         break
                     continue
