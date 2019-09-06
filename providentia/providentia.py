@@ -4,6 +4,7 @@ from contextlib import contextmanager
 from termcolor import cprint
 from scipy import stats
 from collections import OrderedDict
+from functools import wraps
 import pandas as pd
 import multiprocessing as mp
 import multiprocessing.pool
@@ -21,8 +22,18 @@ try:
 except ImportError:
     from providentia.recurse_database import recurse_database
 
+def graceful_ctrlc(func):
+    """Makes decorated function exit gravefully with exit code 1
+    on ctrl+C"""
+    @wraps(func)
+    def wrapper(*args, **kwargs):
+        try:
+            return func(*args, **kwargs)
+        except KeyboardInterrupt:
+            sys.exit(1)
+    return wrapper
 
-def _worker(df, init_header, headers, q, names_column, match_column,
+def _worker(df, init_header, headers, q, names_column, match_column, min_length,
             threads, depth):
     # here we determine how to recurse down the list
     # having received a init_header we start with significane testing it
@@ -36,7 +47,8 @@ def _worker(df, init_header, headers, q, names_column, match_column,
     jobs = []
     for subgroup in subgroups:
         job = pool.apply_async(_init_run, (df, init_header, headers, subgroup,
-                                           names_column, match_column, q))
+                                           names_column, match_column, min_length,
+                                           q))
         #job = pool.apply_async(__dummy, (subgroup, q))
         jobs.append(job)
         #print('started')
@@ -47,14 +59,15 @@ def _worker(df, init_header, headers, q, names_column, match_column,
     cprint("done?", "red")
     return 
 
+@graceful_ctrlc
 def _init_run(df, init_header, headers, init_slice, names_column, match_column,
-              q):
+              min_length, q):
     """Initiates the recurse run, serves to allow multi-processing from 
     within the _worker child process."""
     sub_df = df[df[init_header].str.match(init_slice)]
     recurse_d = recurse_database(df, init_header, headers, OrderedDict(
                                  {init_header: init_slice}), names_column,
-                                 match_column, q=q)
+                                 match_column, min_length, q=q)
     recurse_d.__next__()
     return
 
@@ -66,6 +79,7 @@ def __dummy(num, q):
         q.put(num)
         time.sleep(2)
         return
+
 
 def _listener(q, outfile='-'):
     # we'll need a listener to safely output results from seperate
@@ -150,6 +164,9 @@ def main():
     parser.add_argument("-d", "--depth", default=None, type=int,
                         help="""Specify maximum recursive depth that will be
                         descended""")
+    parser.add_argument("-l", "--min_length", default=20, type=int,
+                        help="""Specify minimum length of slice for inclusion in
+                        analysis""")
     parser.add_argument("-o", "--outfile", type=str, default='-', help="Specify \
                         outfile for results writing. By default writes to stdout.")
     parser.add_argument("-t", "--threads", default=1, type=int, help="""Define
@@ -183,7 +200,8 @@ def main():
     opt_threads = optimal_ints(args.threads, len(entry_set))
     for init_header, threads in zip(entry_set, opt_threads):
         job = pool.apply_async(_worker, (df_minerva_all, init_header, headers,
-                                         q, names_column, match_column, threads,
+                                         q, names_column, match_column,
+                                         args.min_length, threads,
                                          args.depth))
         jobs.append(job)
         #break
