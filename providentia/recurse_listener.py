@@ -7,8 +7,6 @@ from statsmodels.stats import proportion
 import sys
 import pandas as pd
 import numpy as np
-import time
-import warnings
 
 np.seterr(all='ignore')
 
@@ -18,6 +16,7 @@ def recurse_listener():
     result = None
     while True:
         df, slices, headers, df_type, parent_df = yield result
+        print("begin")
         #print("df_type: " + df_type)
         # names column needs to be sent also, determine number of copies
         names = None
