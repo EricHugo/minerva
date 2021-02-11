@@ -430,9 +430,15 @@ def find_CRISPRs(fna, name=None):
     return output_handle, result
 
 def main():
-    parser = argparse.ArgumentParser(description="""For a given set of genomes
-            investigate presence of RAYT via HMMs. Attempt to categorize mathces
-            and investigate flanking genes and 16mers.""")
+    parser = argparse.ArgumentParser(
+        description="""Identification of genes within a given set of microbial 
+                genomes. minerva maps presence/absence of gene families, and 
+                assists in identifying patterns underlying the 
+                presence/absence.""",
+        epilog="""Report issues and bugs to the issue tracker at
+                https://github.com/EricHugo/minerva or directly to 
+                eric@hugoson.org""",
+        prog='minerva')
 
     parser.add_argument("fastaList", help="""Sequence(s) along with type (fna,
             faa, gbk) provided in a tabular format""")
