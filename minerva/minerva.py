@@ -159,11 +159,11 @@ def get_neighbour_products(faa, fasta, neighbours, gene, q, blast_db):
         for prod in find_gbk_product(fasta, target=neighbours[each + '_neighbour'],
                                      unique=True):
             cprint(prod, "red")
-            if ''.join(prod) == "hypothetical protein":
-                continue
-            neighbour_product = prod
             neighbour_faa = extract_protein(faa, neighbours[each + '_neighbour'],
                                             write=True)
+            if ''.join(prod) == "hypothetical protein" and blast_db:
+                continue
+            neighbour_product = prod
             print(neighbour_faa)
         if not neighbour_product and blast_db:
             cprint(gene, "magenta")
@@ -188,7 +188,7 @@ def get_neighbour_products(faa, fasta, neighbours, gene, q, blast_db):
                 cprint(blast.get_protein_name(), "red")
                 neighbours[each + '_product'] = "hypothetical protein"
         else:
-            neighbours[each + '_product'] = ''.join(neighbour_product)
+            neighbours[each + '_product'] = "-"
         neighbours[each + '_path'] = os.path.abspath(neighbour_faa)
         #neighbour_OG = get_matches(neighbour_faa, "test", '/seq/databases/eggNOG/bactNOG/all_bactNOG.hmm')
         #neighbours[each + '_OG'] = list(neighbour_OG.values())[0][0][0]
