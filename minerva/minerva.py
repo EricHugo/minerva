@@ -158,6 +158,9 @@ def get_neighbour_products(faa, fasta, neighbours, gene, q, blast_db):
         neighbour_product = None
         for prod in find_gbk_product(fasta, target=neighbours[each + '_neighbour'],
                                      unique=True):
+            cprint(prod, "red")
+            if ''.join(prod) == "hypothetical protein":
+                continue
             neighbour_product = prod
             neighbour_faa = extract_protein(faa, neighbours[each + '_neighbour'],
                                             write=True)
@@ -183,7 +186,7 @@ def get_neighbour_products(faa, fasta, neighbours, gene, q, blast_db):
                 neighbours[each + '_product'] = ''.join(blast.get_protein_name())
             except TypeError:
                 cprint(blast.get_protein_name(), "red")
-                neighbours[each + '_product'] = None
+                neighbours[each + '_product'] = "hypothetical protein"
         else:
             neighbours[each + '_product'] = ''.join(neighbour_product)
         neighbours[each + '_path'] = os.path.abspath(neighbour_faa)
