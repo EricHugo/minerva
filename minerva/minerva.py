@@ -62,7 +62,7 @@ def _worker(fasta, seqType, raw_name, hmm, q, gen_directory, tax, evalue=1e-30,
         return #not supported for now
     elif re.match("(gb.?.?)|genbank", seqType):
         for feature in get_gbk_feature(fasta, 'features'):
-            if feature.type == "source":
+            if feature.type == "source" and not raw_name:
                 raw_name = ''.join(feature.qualifiers['organism'])
                 break
         name = raw_name

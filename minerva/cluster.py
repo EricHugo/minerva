@@ -16,6 +16,7 @@ class clusterProteins():
         self.results_df = pd.read_csv(result_tab, sep='\t')
         paths = self.results_df['Forward_path'].values.tolist()
         paths = paths + self.results_df['Reverse_path'].values.tolist()
+        paths = [path for path in paths if isinstance(path, str) ]
         print(paths)
         # should sequences be filtered for compsotitional bias
         # CAST?
