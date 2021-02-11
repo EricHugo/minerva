@@ -51,17 +51,17 @@ try:
 except FileExistsError:
     pass
 
-def _worker(fasta, seqType, raw_name, hmm, q, gen_directory, tax, evalue=1e-30,
+def _worker(genome, seqType, raw_name, hmm, q, gen_directory, tax, evalue=1e-30,
             crispr=False, blast_db=None):
     #tax = parseTaxonomy()
     if seqType == "faa":
-        faa = fasta
+        faa = genome
         return #not supported for now
     elif seqType == "fna":
-        faa = micomplete.create_proteome(fasta)
+        faa = micomplete.create_proteome(genome)
         return #not supported for now
     elif re.match("(gb.?.?)|genbank", seqType):
-        for feature in get_gbk_feature(fasta, 'features'):
+        for feature in get_gbk_feature(genome, 'features'):
             if feature.type == "source" and not raw_name:
                 raw_name = ''.join(feature.qualifiers['organism'])
                 break
@@ -73,7 +73,7 @@ def _worker(fasta, seqType, raw_name, hmm, q, gen_directory, tax, evalue=1e-30,
         # if there is another organism with the same name, also get strain
         # if no strain, get the db xreference
         if Path(name + '.faa').is_file():
-            for feature in get_gbk_feature(fasta, 'features'):
+            for feature in get_gbk_feature(genome, 'features'):
                 if feature.type == "source":
                     try:
                         strain = ''.join(feature.qualifiers['strain'])
@@ -92,8 +92,8 @@ def _worker(fasta, seqType, raw_name, hmm, q, gen_directory, tax, evalue=1e-30,
         print("Working on %s" % raw_name)
         # remove illegal characters
         # also swap spaces for underscores
-        faa = micomplete.extract_gbk_trans(fasta, name + '.faa')
-        fna = get_contigs_gbk(fasta, re.sub('\/', '', name + '.fna'))
+        faa = micomplete.extract_gbk_trans(genome, name + '.faa')
+        fna = get_contigs_gbk(genome, re.sub('\/', '', name + '.fna'))
         # if there is no translation to extract, get contigs and use prodigal
         # find ORFs instead
         if not os.path.isfile(faa) or os.stat(faa).st_size == 0:
@@ -109,7 +109,7 @@ def _worker(fasta, seqType, raw_name, hmm, q, gen_directory, tax, evalue=1e-30,
         else:
             c_out, c_bool = "-", "-"
         # grab size and gc_content stats
-        pseqs = parseSeqStats(fasta, name, seqType)
+        pseqs = parseSeqStats(genome, name, seqType)
         seq_length, _, gc_content = pseqs.get_length()
         taxid = tax.find_taxid(raw_name)
         if taxid:
@@ -122,12 +122,12 @@ def _worker(fasta, seqType, raw_name, hmm, q, gen_directory, tax, evalue=1e-30,
     else:
         raise TypeError('Sequence type needs to be specified as one of '
                         'faa/fna/gbk')
-    basename = os.path.basename(fasta).split('.')[0]
+    basename = os.path.basename(genome).split('.')[0]
     if not name:
         name = basename
     gene_matches = get_matches(faa, name, hmm, evalue)
     if gene_matches:
-        neighbour_find = findGeneNeighbourhood(fasta, faa, name, seq_length,
+        neighbour_find = findGeneNeighbourhood(genome, faa, name, seq_length,
                                                gene_matches)
         neighbours = neighbour_find.find_minimum_distance()
 
@@ -136,14 +136,14 @@ def _worker(fasta, seqType, raw_name, hmm, q, gen_directory, tax, evalue=1e-30,
         if neighbours:
             for gene, neighbourhood in neighbours.items():
                 print(gene)
-                neighbours = get_neighbour_products(faa, fasta, neighbourhood, gene, q, blast_db)
+                neighbours = get_neighbour_products(faa, genome, neighbourhood, gene, q, blast_db)
                 gene_matches[gene].append(extract_protein(faa, gene))
                 gene_matches[gene].append(neighbours)
                 print(gene_matches)
     else:
         gene_matches['-'].append(['-', '-'])
     # make an entry of empty results
-    compile_results(name, gene_matches, taxid, taxonomy, fasta, seqType, faa, q,
+    compile_results(name, gene_matches, taxid, taxonomy, genome, seqType, faa, q,
                     seq_length, gc_content, gen_directory=gen_directory, c_bool=c_bool,
                     c_out=c_out)
     return
@@ -440,7 +440,7 @@ def main():
                 eric@hugoson.org""",
         prog='minerva')
 
-    parser.add_argument("fastaList", help="""Sequence(s) along with type (fna,
+    parser.add_argument("genomes", help="""Sequence(s) along with type (fna,
             faa, gbk) provided in a tabular format""")
     parser.add_argument("-o", "--outfile", required=False, default="-",
             help="""Filename to save results. Otherwise prints to stdout.""")
@@ -481,7 +481,7 @@ def main():
     # Initialise taxdump, threadsafety
     tax = parseTaxonomy()
 
-    with open(args.fastaList) as seq_file:
+    with open(args.genomes) as seq_file:
         input_seqs = [seq.strip().split('\t') for seq in seq_file if not
                       re.match('#|\n', seq)]
 
