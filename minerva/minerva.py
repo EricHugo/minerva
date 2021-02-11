@@ -442,13 +442,12 @@ def main():
 
     parser.add_argument("genomes", help="""Sequence(s) along with type (fna,
             faa, gbk) provided in a tabular format""")
+    parser.add_argument("hmms", help="""File containing one or more hmm of
+            genes to be identified in given genomes""")
     parser.add_argument("-o", "--outfile", required=False, default="-",
             help="""Filename to save results. Otherwise prints to stdout.""")
     parser.add_argument("--gendir", required=False, default="protein_matches",
             help="""Directory in which to store matched protein sequences""")
-    parser.add_argument("--hmms", required=False, default=False,
-            help="""Specifies a set of HMMs to be used for completeness check
-                        or linkage analysis""")
     parser.add_argument("--taxa", required=False, help="""Query specific taxonomic
             group, requires a csv of the appropriate group from the NCBI genome
             browser""")
