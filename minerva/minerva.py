@@ -457,10 +457,6 @@ def main():
     parser.add_argument("--crispr", required=False, action='store_true',
             help="""Flag to attempt to assign CRISPR systems within examined
             genomes using CRISPR Recognition Tool (CRT).""")
-    parser.add_argument("--summary", required=False, help="""Attempts to provide
-            a summary of pre-exist results file. Provide a file of column(s) to 
-            be summarised and optionally a selection column with a string to 
-            be matched within the selection column""")
     parser.add_argument("--threads", required=False, default=1, type=int,
                         help="""Number of threads to be used concurrently""")
     parser.add_argument("--db", required=False, default=None, help="""Diamond
