@@ -240,7 +240,7 @@ def compile_results(name, gene_matches, taxid, taxonomy, fasta, seqType, faa, q,
 def _listener(q, headers, outfile='-', gen_directory="protein_matches"):
     """Process to write results in a thread safe manner"""
     try:
-        os.mkdir("protein_matches")
+        os.mkdir(gen_directory)
     except FileExistsError:
         pass
     with open_stdout(outfile) as handle:
