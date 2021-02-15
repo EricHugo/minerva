@@ -52,7 +52,7 @@ except FileExistsError:
     pass
 
 def _worker(genome, seqType, raw_name, hmm, q, gen_directory, tax, evalue=1e-30,
-            crispr=False, blast_db=None):
+            crispr=False, blast_db=None, taxa=None):
     #tax = parseTaxonomy()
     if seqType == "faa":
         faa = genome
@@ -65,7 +65,19 @@ def _worker(genome, seqType, raw_name, hmm, q, gen_directory, tax, evalue=1e-30,
             if feature.type == "source" and not raw_name:
                 raw_name = ''.join(feature.qualifiers['organism'])
                 break
+        taxid = tax.find_taxid(raw_name)
+        if taxid:
+            lineage = tax.parse_taxa(taxid)
+            taxonomy = {rank: tax.find_scientific_name(taxid) for rank, taxid
+                        in lineage}
+        else:
+            taxonomy = {}
+        print(taxonomy)
         name = raw_name
+        # check if desired taxa, else skip
+        if taxa:
+            if not taxa[0].lower() == taxonomy[taxa[1].lower()].lower():
+                return
         for i in ILLEGAL_CHARACTERS:
             name = re.sub(re.escape(i), '', name)
         name = re.sub(' ', '_', name)
@@ -111,14 +123,6 @@ def _worker(genome, seqType, raw_name, hmm, q, gen_directory, tax, evalue=1e-30,
         # grab size and gc_content stats
         pseqs = parseSeqStats(genome, name, seqType)
         seq_length, _, gc_content = pseqs.get_length()
-        taxid = tax.find_taxid(raw_name)
-        if taxid:
-            lineage = tax.parse_taxa(taxid)
-            taxonomy = {rank: tax.find_scientific_name(taxid) for rank, taxid
-                        in lineage}
-        else:
-            taxonomy = {}
-        print(taxonomy)
     else:
         raise TypeError('Sequence type needs to be specified as one of '
                         'faa/fna/gbk')
@@ -451,14 +455,14 @@ def main():
     parser.add_argument("--taxa", required=False, help="""Query specific taxonomic
             group, requires a csv of the appropriate group from the NCBI genome
             browser""")
-    parser.add_argument("--glist", required=False, help="""Genome list in csv
-            format from the NCBI genome browser, required with '--taxa' 
-                        argument""")
+    parser.add_argument("--rank", required=False, help="""Rank (e.g. "order, 
+            family, genus) of taxa specified in --taxa argument.
+            Required with the --taxa argument""")
     parser.add_argument("--crispr", required=False, action='store_true',
             help="""Flag to attempt to assign CRISPR systems within examined
             genomes using CRISPR Recognition Tool (CRT).""")
     parser.add_argument("--threads", required=False, default=1, type=int,
-                        help="""Number of threads to be used concurrently""")
+                        help="""Number of threads to be used concurrently.""")
     parser.add_argument("--db", required=False, default=None, help="""Diamond
                         database to blast protein function against.""")
     args = parser.parse_args()
@@ -472,6 +476,9 @@ def main():
             assert spawn.find_executable('hmmsearch')
         except AssertionError:
             raise RuntimeError('Unable to find hmmsearch in path')
+
+    if args.taxa and not args.rank:
+        raise RuntimeError('Taxa argument also requires specifying rank argument')
 
     # Initialise taxdump, threadsafety
     tax = parseTaxonomy()
@@ -493,7 +500,8 @@ def main():
         job = pool.apply_async(_worker, (i[0], i[1], i[2], args.hmms, q,
                                          args.gendir, tax),
                                          {"crispr":args.crispr,
-                                          "blast_db":args.db})
+                                          "blast_db":args.db,
+                                          "taxa": (args.taxa, args.rank)})
         jobs.append(job)
     # get() all processes to catch errors
     for job in jobs:
