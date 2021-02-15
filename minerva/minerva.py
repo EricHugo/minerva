@@ -446,12 +446,12 @@ def main():
 
     parser.add_argument("genomes", help="""Sequence(s) along with type (fna,
             faa, gbk) provided in a tabular format""")
-    parser.add_argument("hmms", help="""File containing one or more hmm of
-            genes to be identified in given genomes""")
+    parser.add_argument("hmms", help="""File containing one or more HMM of
+            genes to be identified in given genomes.""")
     parser.add_argument("-o", "--outfile", required=False, default="-",
             help="""Filename to save results. Otherwise prints to stdout.""")
     parser.add_argument("--gendir", required=False, default="protein_matches",
-            help="""Directory in which to store matched protein sequences""")
+            help="""Specify directory in which to store matched protein sequences.""")
     parser.add_argument("--taxa", required=False, help="""Query specific taxonomic
             group, requires a csv of the appropriate group from the NCBI genome
             browser""")
@@ -464,7 +464,8 @@ def main():
     parser.add_argument("--threads", required=False, default=1, type=int,
                         help="""Number of threads to be used concurrently.""")
     parser.add_argument("--db", required=False, default=None, help="""Diamond
-                        database to blast protein function against.""")
+                        database to blast neighbour proteins against for
+                        product description if labeled hypothetical in gbk.""")
     args = parser.parse_args()
 
     try:
