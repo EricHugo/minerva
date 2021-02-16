@@ -130,7 +130,7 @@ def _worker(genome, seqType, raw_name, hmm, q, gen_directory, datadir, tax, eval
     basename = os.path.basename(genome).split('.')[0]
     if not name:
         name = basename
-    gene_matches = get_matches(faa, name, hmm, evalue)
+    gene_matches = get_matches(faa, faa_name, hmm, evalue)
     if gene_matches:
         neighbour_find = findGeneNeighbourhood(genome, faa, name, seq_length,
                                                gene_matches)
@@ -295,7 +295,7 @@ def open_stdout(outfile):
 
 def get_matches(faa, name, hmm, evalue=1e-30):
     """Retrieves markers in hmm from the given proteome"""
-    comp = calcCompleteness(faa, re.sub('\/', '', name), hmm, evalue=evalue, bias=0.3, best_domain=1e-5)
+    comp = calcCompleteness(faa, name, hmm, evalue=evalue, bias=0.3, best_domain=1e-5)
     foundmatches, _, _ = comp.get_completeness()
     print(name + ': ' + str(foundmatches))
     # ensure unique, best match for each hmm
