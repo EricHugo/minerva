@@ -51,8 +51,8 @@ try:
 except FileExistsError:
     pass
 
-def _worker(genome, seqType, raw_name, hmm, q, gen_directory, tax, evalue=1e-30,
-            crispr=False, blast_db=None, taxa=None):
+def _worker(genome, seqType, raw_name, hmm, q, gen_directory, datadir, tax, evalue=1e-30,
+            crispr=False, blast_db=None, taxa=None, neighbourhood=False):
     #tax = parseTaxonomy()
     if seqType == "faa":
         faa = genome
@@ -104,8 +104,9 @@ def _worker(genome, seqType, raw_name, hmm, q, gen_directory, tax, evalue=1e-30,
         print("Working on %s" % raw_name)
         # remove illegal characters
         # also swap spaces for underscores
-        faa = micomplete.extract_gbk_trans(genome, name + '.faa')
-        fna = get_contigs_gbk(genome, re.sub('\/', '', name + '.fna'))
+        faa_name = os.path.join(datadir, name + '.faa')
+        faa = micomplete.extract_gbk_trans(genome, faa_name)
+        fna = get_contigs_gbk(genome, datadir, re.sub('\/', '', name + '.fna'))
         # if there is no translation to extract, get contigs and use prodigal
         # find ORFs instead
         if not os.path.isfile(faa) or os.stat(faa).st_size == 0:
@@ -114,7 +115,7 @@ def _worker(genome, seqType, raw_name, hmm, q, gen_directory, tax, evalue=1e-30,
                 os.remove(faa)
             except FileNotFoundError:
                 pass
-            faa = micomplete.create_proteome(fna, re.sub('\/', '', name))
+            faa = micomplete.create_proteome(fna, faa_name)
         # find CRISPRs
         if crispr:
             c_out, c_bool = find_CRISPRs(fna, re.sub('\/', '', name))
@@ -335,11 +336,16 @@ def get_gbk_feature(handle, feature_type):
             yield feature
     return value
 
-def get_contigs_gbk(gbk, name=None):
+def get_contigs_gbk(gbk, dest=None, name=None):
     """Extracts all sequences from gbk file, returns filename"""
     handle = open(gbk, mode='r')
     if not name:
         name = os.path.basename(gbk).split('.')[0]
+    if dest:
+        try:
+            name = os.path.join(dest, name)
+        except FileNotFoundError:
+            os.mkdir(dest)
     out_handle = open(name, mode='w')
     for seq in SeqIO.parse(handle, "genbank"):
         out_handle.write(">" + seq.id + "\n")
@@ -452,6 +458,9 @@ def main():
             help="""Filename to save results. Otherwise prints to stdout.""")
     parser.add_argument("--gendir", required=False, default="protein_matches",
             help="""Specify directory in which to store matched protein sequences.""")
+    parser.add_argument("--datadir", required=False, default="data",
+            help="""Specify directory in which to store produced genomes, proteomes,
+            and HMMER results.""")
     parser.add_argument("--taxa", required=False, help="""Query specific taxonomic
             group, requires a csv of the appropriate group from the NCBI genome
             browser""")
@@ -461,6 +470,9 @@ def main():
     parser.add_argument("--crispr", required=False, action='store_true',
             help="""Flag to attempt to assign CRISPR systems within examined
             genomes using CRISPR Recognition Tool (CRT).""")
+    parser.add_argument("--neighbours", required=False, action='store_true',
+            help="""Flag to identify nearest neighbour up- and downstream
+            of matched gene.""")
     parser.add_argument("--threads", required=False, default=1, type=int,
                         help="""Number of threads to be used concurrently.""")
     parser.add_argument("--db", required=False, default=None, help="""Diamond
@@ -499,10 +511,11 @@ def main():
         if len(i) == 2:
             i.append(None)
         job = pool.apply_async(_worker, (i[0], i[1], i[2], args.hmms, q,
-                                         args.gendir, tax),
+                                         args.gendir, args.datadir, tax),
                                          {"crispr":args.crispr,
                                           "blast_db":args.db,
-                                          "taxa": (args.taxa, args.rank)})
+                                          "taxa": (args.taxa, args.rank),
+                                          "neighbourhood": args.neighbours})
         jobs.append(job)
     # get() all processes to catch errors
     for job in jobs:
@@ -512,10 +525,11 @@ def main():
     pool.close()
     pool.join()
     # finally cluster neighbours
-    clustering = clusterProteins(args.outfile, threads=args.threads)
-    out = clustering.mcl_cluster()
-    clusters = clustering.assign_groups(out)
-    clustering.attribute_COGs(clusters)
+    if args.neighbours:
+        clustering = clusterProteins(args.outfile, threads=args.threads)
+        out = clustering.mcl_cluster()
+        clusters = clustering.assign_groups(out)
+        clustering.attribute_COGs(clusters)
     return
 
 if __name__ == "__main__":
