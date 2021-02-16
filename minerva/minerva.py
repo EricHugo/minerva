@@ -52,7 +52,7 @@ except FileExistsError:
     pass
 
 def _worker(genome, seqType, raw_name, hmm, q, gen_directory, datadir, tax, evalue=1e-30,
-            crispr=False, blast_db=None, taxa=None, neighbourhood=False):
+            crispr=False, blast_db=None, taxa=None, neighbourhood=True):
     #tax = parseTaxonomy()
     if seqType == "faa":
         faa = genome
@@ -131,7 +131,9 @@ def _worker(genome, seqType, raw_name, hmm, q, gen_directory, datadir, tax, eval
     if not name:
         name = basename
     gene_matches = get_matches(faa, faa_name, hmm, evalue)
-    if gene_matches:
+    print(gene_matches)
+    print(neighbourhood)
+    if gene_matches and neighbourhood:
         neighbour_find = findGeneNeighbourhood(genome, faa, name, seq_length,
                                                gene_matches)
         neighbours = neighbour_find.find_minimum_distance()
@@ -145,6 +147,8 @@ def _worker(genome, seqType, raw_name, hmm, q, gen_directory, datadir, tax, eval
                 gene_matches[gene].append(extract_protein(faa, gene))
                 gene_matches[gene].append(neighbours)
                 print(gene_matches)
+    elif gene_matches:
+        pass
     else:
         gene_matches['-'].append(['-', '-'])
     # make an entry of empty results
@@ -470,8 +474,8 @@ def main():
     parser.add_argument("--crispr", required=False, action='store_true',
             help="""Flag to attempt to assign CRISPR systems within examined
             genomes using CRISPR Recognition Tool (CRT).""")
-    parser.add_argument("--neighbours", required=False, action='store_true',
-            help="""Flag to identify nearest neighbour up- and downstream
+    parser.add_argument("--no_neighbours", required=False, action='store_false',
+            help="""Flag to skip identifying nearest neighbour up- and downstream
             of matched gene.""")
     parser.add_argument("--threads", required=False, default=1, type=int,
                         help="""Number of threads to be used concurrently.""")
@@ -517,7 +521,7 @@ def main():
                                          {"crispr":args.crispr,
                                           "blast_db":args.db,
                                           "taxa": (args.taxa, args.rank),
-                                          "neighbourhood": args.neighbours})
+                                          "neighbourhood": args.no_neighbours})
         jobs.append(job)
     # get() all processes to catch errors
     for job in jobs:
