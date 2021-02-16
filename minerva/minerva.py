@@ -75,7 +75,7 @@ def _worker(genome, seqType, raw_name, hmm, q, gen_directory, datadir, tax, eval
         print(taxonomy)
         name = raw_name
         # check if desired taxa, else skip
-        if taxa:
+        if taxa[0]:
             if not taxa[0].lower() == taxonomy[taxa[1].lower()].lower():
                 return
         for i in ILLEGAL_CHARACTERS:
@@ -507,6 +507,8 @@ def main():
     # init listener here
     listener = pool.apply_async(_listener, (q, headers, args.outfile, args.gendir))
     jobs = []
+    if args.datadir:
+        os.makedirs(args.datadir, exist_ok=True)
     for i in input_seqs:
         if len(i) == 2:
             i.append(None)
