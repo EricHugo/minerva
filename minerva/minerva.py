@@ -84,38 +84,39 @@ def _worker(genome, seqType, raw_name, hmm, q, gen_directory, datadir, tax, eval
 
         # if there is another organism with the same name, also get strain
         # if no strain, get the db xreference
-        if Path(name + '.faa').is_file():
-            for feature in get_gbk_feature(genome, 'features'):
-                if feature.type == "source":
+        #if Path(name + '.faa').is_file():
+        for feature in get_gbk_feature(genome, 'features'):
+            if feature.type == "source":
+                try:
+                    strain = ''.join(feature.qualifiers['strain'])
                     try:
-                        strain = ''.join(feature.qualifiers['strain'])
-                        try:
-                            strain = ''.join(strain.split(':')[1])
-                        except IndexError:
-                            pass
-                        break
-                    except KeyError:
-                        strain = ''.join(feature.qualifiers['db_xref'])
-            name = raw_name + '_' + strain
-            for i in ILLEGAL_CHARACTERS:
-                name = re.sub(re.escape(i), '', name)
-            name = re.sub(' ', '_', name)
+                        strain = ''.join(strain.split(':')[1])
+                    except IndexError:
+                        pass
+                    break
+                except KeyError:
+                    strain = ''.join(feature.qualifiers['db_xref'])
+        name = raw_name + '_' + strain
+        for i in ILLEGAL_CHARACTERS:
+            name = re.sub(re.escape(i), '', name)
+        name = re.sub(' ', '_', name)
 
         print("Working on %s" % raw_name)
         # remove illegal characters
         # also swap spaces for underscores
-        faa_name = os.path.join(datadir, name + '.faa')
-        faa = micomplete.extract_gbk_trans(genome, faa_name)
+        faa_name = os.path.join(datadir, name)
+        faa = micomplete.extract_gbk_trans(genome, faa_name + '.faa')
         fna = get_contigs_gbk(genome, datadir, re.sub('\/', '', name + '.fna'))
         # if there is no translation to extract, get contigs and use prodigal
         # find ORFs instead
         if not os.path.isfile(faa) or os.stat(faa).st_size == 0:
             print("prodigal")
+            cprint(faa_name, "red")
             try:
                 os.remove(faa)
             except FileNotFoundError:
                 pass
-            faa = micomplete.create_proteome(fna, faa_name)
+            faa = micomplete.create_proteome(fna, faa_name + '.faa')
         # find CRISPRs
         if crispr:
             c_out, c_bool = find_CRISPRs(fna, re.sub('\/', '', name))
@@ -159,7 +160,6 @@ def _worker(genome, seqType, raw_name, hmm, q, gen_directory, datadir, tax, eval
 
 def get_neighbour_products(faa, fasta, neighbours, gene, q, blast_db):
     # neighbour_OGs = []
-    print(neighbours)
     for each in ['forward', 'reverse']:
         # if no neighbour for this particular direction, then append no product
         if not neighbours[each + '_neighbour']:
@@ -458,7 +458,7 @@ def main():
             faa, gbk) provided in a tabular format""")
     parser.add_argument("hmms", help="""File containing one or more HMM of
             genes to be identified in given genomes.""")
-    parser.add_argument("-o", "--outfile", required=False, default="-",
+    parser.add_argument("-o", "--outfile", required=False, type=str, default="-",
             help="""Filename to save results. Otherwise prints to stdout.""")
     parser.add_argument("--gendir", required=False, default="protein_matches",
             help="""Specify directory in which to store matched protein sequences.""")
@@ -531,6 +531,7 @@ def main():
     pool.close()
     pool.join()
     # finally cluster neighbours
+    return
     if args.neighbours:
         clustering = clusterProteins(args.outfile, threads=args.threads)
         out = clustering.mcl_cluster()
