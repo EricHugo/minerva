@@ -12,6 +12,8 @@ import multiprocessing as mp
 import subprocess
 import tarfile
 import hashlib
+import logging
+import logging.handlers
 import subprocess
 from Bio import SeqIO
 from micomplete import calcCompleteness, parseSeqStats, micomplete
@@ -23,14 +25,6 @@ from ftplib import FTP
 from datetime import datetime
 from termcolor import cprint
 from pathlib import Path
-
-# import dev version of miComplete
-#import importlib.util
-#spec = importlib.util.spec_from_file_location("micomplete", 
-#"/home/hugoson/git/micomplete/micomplete/micomplete.py")
-#micomplete = importlib.util.module_from_spec(spec)
-#spec.loader.exec_module(micomplete)
-
 
 
 # import dev minerva modules
@@ -243,6 +237,17 @@ def compile_results(name, gene_matches, taxid, taxonomy, fasta, seqType, faa, q,
         # put result dict in queue for listener
         q.put(result)
     return
+
+
+def _configure_logger(q, name, level=logging.WARNING):
+    qh = CustomQueueHandler(q)
+    logger = logging.getLogger(name)
+    logformatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+    qh.setFormatter(logformatter)
+    logger.addHandler(qh)
+    logger.setLevel(level)
+    return logger
+
 
 def _listener(q, headers, outfile='-', gen_directory="protein_matches"):
     """Process to write results in a thread safe manner"""
