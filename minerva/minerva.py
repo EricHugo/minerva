@@ -82,9 +82,7 @@ def _worker(genome, seqType, raw_name, hmm, q, gen_directory, datadir, tax, eval
             name = re.sub(re.escape(i), '', name)
         name = re.sub(' ', '_', name)
 
-        # if there is another organism with the same name, also get strain
-        # if no strain, get the db xreference
-        #if Path(name + '.faa').is_file():
+        # get strain name to prevent collisions
         for feature in get_gbk_feature(genome, 'features'):
             if feature.type == "source":
                 try:
@@ -474,9 +472,12 @@ def main():
     parser.add_argument("--crispr", required=False, action='store_true',
             help="""Flag to attempt to assign CRISPR systems within examined
             genomes using CRISPR Recognition Tool (CRT).""")
-    parser.add_argument("--no_neighbours", required=False, action='store_false',
+    parser.add_argument("--noneighbours", required=False, action='store_false',
             help="""Flag to skip identifying nearest neighbour up- and downstream
             of matched gene.""")
+    parser.add_argument("--clusterneighbours", required=False, action='store_true',
+            help="""Flag to cluster neighbours once identified. This defines
+            clusters of orthologous genes to help identify related neighbourhoods.""")
     parser.add_argument("--threads", required=False, default=1, type=int,
                         help="""Number of threads to be used concurrently.""")
     parser.add_argument("--db", required=False, default=None, help="""Diamond
@@ -521,7 +522,7 @@ def main():
                                          {"crispr":args.crispr,
                                           "blast_db":args.db,
                                           "taxa": (args.taxa, args.rank),
-                                          "neighbourhood": args.no_neighbours})
+                                          "neighbourhood": args.noneighbours})
         jobs.append(job)
     # get() all processes to catch errors
     for job in jobs:
@@ -531,8 +532,7 @@ def main():
     pool.close()
     pool.join()
     # finally cluster neighbours
-    return
-    if args.neighbours:
+    if args.noneighbours and args.clusterneighbours:
         clustering = clusterProteins(args.outfile, threads=args.threads)
         out = clustering.mcl_cluster()
         clusters = clustering.assign_groups(out)
