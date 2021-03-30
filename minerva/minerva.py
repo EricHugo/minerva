@@ -248,12 +248,31 @@ def _configure_logger(q, name, level=logging.WARNING):
     return logger
 
 
-def _listener(q, headers, outfile='-', gen_directory="protein_matches"):
+class CustomQueueHandler(logging.handlers.QueueHandler):
+    def prepare(self, record):
+        """
+        Override prepare method of the QueueHandler to ensure same behavior
+        across python versions, respecting formatting assigned.
+        """
+        msg = self.format(record)
+        record.message = msg
+        record.msg = msg
+        record.args = None
+        record.exc_info = None
+        record.exc_text = None
+        return record
+
+
+def _listener(q, headers, outfile='-', gen_directory="protein_matches",
+              logger=None, logfile="minerva.log"):
     """Process to write results in a thread safe manner"""
     try:
         os.mkdir(gen_directory)
     except FileExistsError:
         pass
+    logger = _configure_logger(q, "listener", "INFO")
+    if logfile:
+        logtarget = open(logfile, 'w')
     with open_stdout(outfile) as handle:
         while True:
             out_object = q.get()
@@ -266,7 +285,7 @@ def _listener(q, headers, outfile='-', gen_directory="protein_matches"):
                     except (KeyError, TypeError):
                         handle.write('-' + '\t')
                 handle.write('\n')
-            if isinstance(out_object, list):
+            elif isinstance(out_object, list):
                 # write aminoacid sequence
                 for seq_object in out_object:
                     try:
@@ -279,8 +298,13 @@ def _listener(q, headers, outfile='-', gen_directory="protein_matches"):
                 for head in out_object:
                     handle.write(head + "\t")
                 handle.write("\n")
+            elif isinstance(write_request, logging.LogRecord):
+                if write_request.levelname == "WARNING":
+                    warnings = True
+                logtarget.write(write_request.getMessage() + '\n')
             else:
-                continue
+                logger.log(logging.WARNING, "Unhandled queue object at _listener: "
+                       + handle)
     return
 
 @contextmanager
@@ -513,8 +537,12 @@ def main():
     q = manager.Queue()
     headers = init_results_table(q, args.outfile)
     pool = mp.Pool(processes=int(args.threads) + 1)
-    # init listener here
-    listener = pool.apply_async(_listener, (q, headers, args.outfile, args.gendir))
+
+    # init logger then listener with logger assigned
+    logger = _configure_logger(q, "main", "DEBUG")
+    listener = pool.apply_async(_listener, (q, headers, args.outfile, args.gendir), 
+            {logfile: "minerva.log"})
+    logger.log(logging.INFO, "minerva has started")
     jobs = []
     if args.datadir:
         os.makedirs(args.datadir, exist_ok=True)
@@ -531,7 +559,9 @@ def main():
     # get() all processes to catch errors
     for job in jobs:
         job.get()
+    logger.log(logging.INFO, "Finished work on all given sequences")
     q.put("done")
+    logger.log(logging.INFO, "Waiting for listener to finish and exit")
     listener.get()
     pool.close()
     pool.join()
