@@ -274,7 +274,9 @@ def _listener(q, headers, outfile='-', gen_directory="protein_matches",
     if logfile:
         logtarget = open(logfile, 'w')
     with open_stdout(outfile) as handle:
+        print("listening")
         while True:
+            cprint("listening", "red")
             out_object = q.get()
             if out_object == "done":
                 break
@@ -298,10 +300,10 @@ def _listener(q, headers, outfile='-', gen_directory="protein_matches",
                 for head in out_object:
                     handle.write(head + "\t")
                 handle.write("\n")
-            elif isinstance(write_request, logging.LogRecord):
-                if write_request.levelname == "WARNING":
+            elif isinstance(out_object, logging.LogRecord):
+                if out_object.levelname == "WARNING":
                     warnings = True
-                logtarget.write(write_request.getMessage() + '\n')
+                logtarget.write(out_object.getMessage() + '\n')
             else:
                 logger.log(logging.WARNING, "Unhandled queue object at _listener: "
                        + handle)
@@ -541,7 +543,7 @@ def main():
     # init logger then listener with logger assigned
     logger = _configure_logger(q, "main", "DEBUG")
     listener = pool.apply_async(_listener, (q, headers, args.outfile, args.gendir), 
-            {logfile: "minerva.log"})
+            {"logfile": "minerva.log"})
     logger.log(logging.INFO, "minerva has started")
     jobs = []
     if args.datadir:
