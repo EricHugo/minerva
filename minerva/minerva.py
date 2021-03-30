@@ -47,7 +47,6 @@ except FileExistsError:
 
 def _worker(genome, seqType, raw_name, hmm, q, gen_directory, datadir, tax, evalue=1e-30,
             crispr=False, blast_db=None, taxa=None, neighbourhood=True):
-    #tax = parseTaxonomy()
     if seqType == "faa":
         faa = genome
         return #not supported for now

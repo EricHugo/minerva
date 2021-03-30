@@ -5,6 +5,7 @@ from collections import defaultdict, ChainMap
 from Bio import SeqIO
 from itertools import chain
 from termcolor import cprint
+import logging
 import re
 
 class findGeneNeighbourhood():

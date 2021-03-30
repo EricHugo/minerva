@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
 from termcolor import cprint
+import logging
 import re
 import sys
 import subprocess

@@ -4,6 +4,7 @@ from __future__ import print_function
 from collections import defaultdict
 from ftplib import FTP
 from datetime import datetime
+import logging
 import sys
 import mmap
 import re
