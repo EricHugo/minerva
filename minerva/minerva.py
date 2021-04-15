@@ -52,7 +52,7 @@ def _worker(genome, seqType, raw_name, argv, q, tax, evalue=1e-30,
         log_lvl = logging.DEBUG
     elif argv.verbose:
         log_lvl = logging.INFO
-    logger = _configure_logger(q, name, log_lvl)
+    logger = _configure_logger(q, genome, log_lvl)
     logger.log(logging.INFO, "Started work on %s" % genome)
     if re.match("(gb.?.?)|genbank", seqType):
         print(genome)
@@ -62,6 +62,7 @@ def _worker(genome, seqType, raw_name, argv, q, tax, evalue=1e-30,
                 if not raw_name:
                     raw_name = ''.join(feature.qualifiers['source'])
                 break
+        name = raw_name
         taxid = tax.find_taxid(raw_name)
         if taxid:
             lineage = tax.parse_taxa(taxid)
@@ -70,7 +71,6 @@ def _worker(genome, seqType, raw_name, argv, q, tax, evalue=1e-30,
         else:
             taxonomy = {}
         print(taxonomy)
-        name = raw_name
         # check if desired taxa, else skip
         if taxa[0]:
             if not taxa[0].lower() == taxonomy[taxa[1].lower()].lower():
@@ -95,6 +95,8 @@ def _worker(genome, seqType, raw_name, argv, q, tax, evalue=1e-30,
         for i in ILLEGAL_CHARACTERS:
             name = re.sub(re.escape(i), '', name)
         name = re.sub(' ', '_', name)
+        logger = _configure_logger(q, name, log_lvl)
+        logger.log(logging.INFO, "Started work on %s" % genome)
 
         print("Working on %s" % raw_name)
         # remove illegal characters
