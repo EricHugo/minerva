@@ -54,9 +54,12 @@ def _worker(genome, seqType, raw_name, hmm, q, gen_directory, datadir, tax, eval
         faa = micomplete.create_proteome(genome)
         return #not supported for now
     elif re.match("(gb.?.?)|genbank", seqType):
+        print(genome)
         for feature in get_gbk_feature(genome, 'features'):
             if feature.type == "source" and not raw_name:
                 raw_name = ''.join(feature.qualifiers['organism'])
+                if not raw_name:
+                    raw_name = ''.join(feature.qualifiers['source'])
                 break
         taxid = tax.find_taxid(raw_name)
         if taxid:
@@ -274,9 +277,7 @@ def _listener(q, headers, outfile='-', gen_directory="protein_matches",
     if logfile:
         logtarget = open(logfile, 'w')
     with open_stdout(outfile) as handle:
-        print("listening")
         while True:
-            cprint("listening", "red")
             out_object = q.get()
             if out_object == "done":
                 break
@@ -363,8 +364,8 @@ def get_gbk_feature(handle, feature_type):
     input_handle = open(handle, mode='r')
     value = None
     for record in SeqIO.parse(input_handle, "genbank"):
+        # print(dir(record))
         for feature in getattr(record, feature_type):
-            #print(feature)
             yield feature
     return value
 
@@ -476,7 +477,7 @@ def main():
         description="""Identification of genes within a given set of microbial 
                 genomes. minerva maps presence/absence of gene families, and 
                 assists in identifying patterns underlying the 
-                presence/absence.""",
+                presence/absence and synteny.""",
         epilog="""Report issues and bugs to the issue tracker at
                 https://github.com/EricHugo/minerva or directly to 
                 eric@hugoson.org""",
@@ -513,6 +514,12 @@ def main():
     parser.add_argument("--db", required=False, default=None, help="""Diamond
                         database to blast neighbour proteins against for
                         product description if labeled hypothetical in gbk.""")
+    parser.add_argument("--log", required=False, default="minerva.log",
+                        type=str, help="Name of log file. Default=minerva.log")
+    parser.add_argument("-v", "--verbose", required=False, default=False,
+                        action='store_true', help="""Enable verbose logging""")
+    parser.add_argument("--debug", required=False, default=False,
+                        action='store_true')
     args = parser.parse_args()
 
     try:
@@ -545,6 +552,7 @@ def main():
     listener = pool.apply_async(_listener, (q, headers, args.outfile, args.gendir), 
             {"logfile": "minerva.log"})
     logger.log(logging.INFO, "minerva has started")
+    logger.log(logging.INFO, "Using %i thread(s)" % args.threads)
     jobs = []
     if args.datadir:
         os.makedirs(args.datadir, exist_ok=True)
