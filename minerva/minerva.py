@@ -54,13 +54,7 @@ def _worker(genome, seqType, raw_name, argv, q, tax, evalue=1e-30,
         log_lvl = logging.INFO
     logger = _configure_logger(q, name, log_lvl)
     logger.log(logging.INFO, "Started work on %s" % genome)
-    if seqType == "faa":
-        faa = genome
-        return #not supported for now
-    elif seqType == "fna":
-        faa = micomplete.create_proteome(genome)
-        return #not supported for now
-    elif re.match("(gb.?.?)|genbank", seqType):
+    if re.match("(gb.?.?)|genbank", seqType):
         print(genome)
         for feature in get_gbk_feature(genome, 'features'):
             if feature.type == "source" and not raw_name:
