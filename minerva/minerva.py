@@ -92,22 +92,22 @@ def _worker(genome, seqType, raw_name, argv, q, tax, evalue=1e-30,
                 except KeyError:
                     strain = ''.join(feature.qualifiers['db_xref'])
         name = raw_name + '_' + strain
+        # remove illegal characters
+        # also swap spaces for underscores
         for i in ILLEGAL_CHARACTERS:
             name = re.sub(re.escape(i), '', name)
         name = re.sub(' ', '_', name)
         logger = _configure_logger(q, name, log_lvl)
-        logger.log(logging.INFO, "Started work on %s" % genome)
 
-        print("Working on %s" % raw_name)
-        # remove illegal characters
-        # also swap spaces for underscores
         faa_name = os.path.join(argv.datadir, name)
+        logger.log(logging.INFO, "Extracting translations from %s" % genome)
         faa = micomplete.extract_gbk_trans(genome, faa_name + '.faa')
+        logger.log(logging.INFO, "Extracting contig(s) from %s" % genome)
         fna = get_contigs_gbk(genome, argv.datadir, re.sub('\/', '', name + '.fna'))
         # if there is no translation to extract, get contigs and use prodigal
         # find ORFs instead
         if not os.path.isfile(faa) or os.stat(faa).st_size == 0:
-            print("prodigal")
+            logger.log(logging.WARN, "Unable to extract translations from %s, creating novel ones" % genome)
             cprint(faa_name, "red")
             try:
                 os.remove(faa)
@@ -120,24 +120,25 @@ def _worker(genome, seqType, raw_name, argv, q, tax, evalue=1e-30,
         else:
             c_out, c_bool = "-", "-"
         # grab size and gc_content stats
+        logger.log(logging.INFO, "Gathering sequence statistics for %s" % name)
         pseqs = parseSeqStats(genome, name, seqType)
         seq_length, _, gc_content = pseqs.get_length()
     else:
+        logger.log(logging.ERR, "No valid sequence type was specified. Recieved: %s. Must be gbk/gb/gbff" % seqType)
         raise TypeError('Sequence type needs to be specified as one of '
-                        'faa/fna/gbk')
+                        'gbk/gb/gbff')
     basename = os.path.basename(genome).split('.')[0]
     if not name:
         name = basename
+    logger.log(logging.INFO, "Attempting to find genes matching %s in %s" % (argv.hmms, name))
     gene_matches = get_matches(faa, faa_name, argv.hmms, evalue)
-    print(gene_matches)
-    print(neighbourhood)
     if gene_matches and neighbourhood:
+        logger.log(logging.INFO, "Locating neighbours of genes matching %s in %s" % (argv.hmms, name))
         neighbour_find = findGeneNeighbourhood(genome, faa, name, seq_length,
                                                gene_matches)
         neighbours = neighbour_find.find_minimum_distance()
 
         # get product names if possible
-        print(neighbours)
         if neighbours:
             for gene, neighbourhood in neighbours.items():
                 print(gene)
@@ -145,11 +146,14 @@ def _worker(genome, seqType, raw_name, argv, q, tax, evalue=1e-30,
                 gene_matches[gene].append(extract_protein(faa, gene))
                 gene_matches[gene].append(neighbours)
                 print(gene_matches)
+        else:
+            logger.log(logging.WARN, "No neighbours were found for genes matching %s in %s" % (argv.hmms, name))
     elif gene_matches:
         pass
     else:
         gene_matches['-'].append(['-', '-'])
     # make an entry of empty results
+    logger.log(logging.INFO, "Outputting results %s" % name)
     compile_results(name, gene_matches, taxid, taxonomy, genome, seqType, faa, q,
                     seq_length, gc_content, gen_directory=argv.gendir, c_bool=c_bool,
                     c_out=c_out)
