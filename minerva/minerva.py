@@ -45,8 +45,15 @@ try:
 except FileExistsError:
     pass
 
-def _worker(genome, seqType, raw_name, hmm, q, gen_directory, datadir, tax, evalue=1e-30,
+def _worker(genome, seqType, raw_name, argv, q, tax, evalue=1e-30,
             crispr=False, blast_db=None, taxa=None, neighbourhood=True):
+    log_lvl = logging.WARNING
+    if argv.debug:
+        log_lvl = logging.DEBUG
+    elif argv.verbose:
+        log_lvl = logging.INFO
+    logger = _configure_logger(q, name, log_lvl)
+    logger.log(logging.INFO, "Started work on %s" % genome)
     if seqType == "faa":
         faa = genome
         return #not supported for now
@@ -98,9 +105,9 @@ def _worker(genome, seqType, raw_name, hmm, q, gen_directory, datadir, tax, eval
         print("Working on %s" % raw_name)
         # remove illegal characters
         # also swap spaces for underscores
-        faa_name = os.path.join(datadir, name)
+        faa_name = os.path.join(argv.datadir, name)
         faa = micomplete.extract_gbk_trans(genome, faa_name + '.faa')
-        fna = get_contigs_gbk(genome, datadir, re.sub('\/', '', name + '.fna'))
+        fna = get_contigs_gbk(genome, argv.datadir, re.sub('\/', '', name + '.fna'))
         # if there is no translation to extract, get contigs and use prodigal
         # find ORFs instead
         if not os.path.isfile(faa) or os.stat(faa).st_size == 0:
@@ -125,7 +132,7 @@ def _worker(genome, seqType, raw_name, hmm, q, gen_directory, datadir, tax, eval
     basename = os.path.basename(genome).split('.')[0]
     if not name:
         name = basename
-    gene_matches = get_matches(faa, faa_name, hmm, evalue)
+    gene_matches = get_matches(faa, faa_name, argv.hmms, evalue)
     print(gene_matches)
     print(neighbourhood)
     if gene_matches and neighbourhood:
@@ -148,7 +155,7 @@ def _worker(genome, seqType, raw_name, hmm, q, gen_directory, datadir, tax, eval
         gene_matches['-'].append(['-', '-'])
     # make an entry of empty results
     compile_results(name, gene_matches, taxid, taxonomy, genome, seqType, faa, q,
-                    seq_length, gc_content, gen_directory=gen_directory, c_bool=c_bool,
+                    seq_length, gc_content, gen_directory=argv.gendir, c_bool=c_bool,
                     c_out=c_out)
     return
 
@@ -559,8 +566,7 @@ def main():
     for i in input_seqs:
         if len(i) == 2:
             i.append(None)
-        job = pool.apply_async(_worker, (i[0], i[1], i[2], args.hmms, q,
-                                         args.gendir, args.datadir, tax),
+        job = pool.apply_async(_worker, (i[0], i[1], i[2], args, q, tax),
                                          {"crispr":args.crispr,
                                           "blast_db":args.db,
                                           "taxa": (args.taxa, args.rank),
