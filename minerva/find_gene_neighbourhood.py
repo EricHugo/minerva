@@ -117,7 +117,7 @@ class findGeneNeighbourhood():
             # min() is by far the slowest part of the code
             # inline lambda function actually faster than .get method
             #print(min(forward_dict, key=forward_dict.get))
-            cprint(self.name, "yellow")
+            # cprint(self.name, "yellow")
             forw = {}
             rev = {}
             forw['forward_neighbour'] = None
@@ -134,7 +134,7 @@ class findGeneNeighbourhood():
                 # therefore if gap is too long, assume its unreliable
                 # and discard
                 if forw_min[1] > 20000:
-                    cprint(forward_locs, "red")
+                    # cprint(forward_locs, "red")
                     print(all_locs)
                     # self.min_locs[match].append((None, None))
                     self.min_locs[match].update(forw)
@@ -152,8 +152,8 @@ class findGeneNeighbourhood():
                                 if type(dist) is int }
                 rev_min = min(reverse_dict.items(), key=lambda x: x[1])
                 if rev_min[1] > 20000:
-                    cprint(reverse_locs, "red")
-                    print(all_locs)
+                    # cprint(reverse_locs, "red")
+                    # print(all_locs)
                     #self.min_locs[match].append((None, None))
                     self.min_locs[match].update(rev)
                 else:
@@ -165,5 +165,5 @@ class findGeneNeighbourhood():
                 cprint(reverse_dict, "cyan")
                 self.min_locs[match].update(rev)
                 #self.min_locs[match].append((None, None))
-            cprint(self.min_locs, "green")
+            # cprint(self.min_locs, "green")
         return self.min_locs

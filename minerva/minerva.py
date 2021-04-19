@@ -55,7 +55,7 @@ def _worker(genome, seqType, raw_name, argv, q, tax, evalue=1e-30,
     logger = _configure_logger(q, genome, log_lvl)
     logger.log(logging.INFO, "Started work on %s" % genome)
     if re.match("(gb.?.?)|genbank", seqType):
-        print(genome)
+        # print(genome)
         for feature in get_gbk_feature(genome, 'features'):
             if feature.type == "source" and not raw_name:
                 raw_name = ''.join(feature.qualifiers['organism'])
@@ -70,7 +70,7 @@ def _worker(genome, seqType, raw_name, argv, q, tax, evalue=1e-30,
                         in lineage}
         else:
             taxonomy = {}
-        print(taxonomy)
+        # print(taxonomy)
         # check if desired taxa, else skip
         if taxa[0]:
             if not taxa[0].lower() == taxonomy[taxa[1].lower()].lower():
@@ -108,7 +108,7 @@ def _worker(genome, seqType, raw_name, argv, q, tax, evalue=1e-30,
         # find ORFs instead
         if not os.path.isfile(faa) or os.stat(faa).st_size == 0:
             logger.log(logging.WARN, "Unable to extract translations from %s, creating novel ones" % genome)
-            cprint(faa_name, "red")
+            # cprint(faa_name, "red")
             try:
                 os.remove(faa)
             except FileNotFoundError:
@@ -141,11 +141,11 @@ def _worker(genome, seqType, raw_name, argv, q, tax, evalue=1e-30,
         # get product names if possible
         if neighbours:
             for gene, neighbourhood in neighbours.items():
-                print(gene)
+                # print(gene)
                 neighbours = get_neighbour_products(faa, genome, neighbourhood, gene, q, blast_db)
                 gene_matches[gene].append(extract_protein(faa, gene))
                 gene_matches[gene].append(neighbours)
-                print(gene_matches)
+                # print(gene_matches)
         else:
             logger.log(logging.WARN, "No neighbours were found for genes matching %s in %s" % (argv.hmms, name))
     elif gene_matches:
@@ -159,6 +159,7 @@ def _worker(genome, seqType, raw_name, argv, q, tax, evalue=1e-30,
                     c_out=c_out)
     return
 
+
 def get_neighbour_products(faa, fasta, neighbours, gene, q, blast_db):
     # neighbour_OGs = []
     for each in ['forward', 'reverse']:
@@ -168,34 +169,34 @@ def get_neighbour_products(faa, fasta, neighbours, gene, q, blast_db):
         neighbour_product = None
         for prod in find_gbk_product(fasta, target=neighbours[each + '_neighbour'],
                                      unique=True):
-            cprint(prod, "red")
+            # cprint(prod, "red")
             neighbour_faa = extract_protein(faa, neighbours[each + '_neighbour'],
                                             write=True)
             if ''.join(prod) == "hypothetical protein" and blast_db:
                 continue
             neighbour_product = prod
-            print(neighbour_faa)
+            # print(neighbour_faa)
         if not neighbour_product and blast_db:
-            cprint(gene, "magenta")
-            print(neighbours[each + '_neighbour'])
-            print(faa)
+            # cprint(gene, "magenta")
+            # print(neighbours[each + '_neighbour'])
+            # print(faa)
             neighbour_faa = extract_protein(faa, neighbours[each + '_neighbour'],
                                             write=True)
             # new func that takes extracted protein and diamond
             # against uniprot => extracts protein name
             blast = diamondBlast(blast_db, '_')
-            cprint(neighbour_faa, "magenta")
+            # cprint(neighbour_faa, "magenta")
             try:
                 blast.perform_blast(neighbour_faa, '--outfmt', '6',
                                     'sseqid', 'evalue', 'bitscore', 'ppos',
                                     'salltitles', evalue='1e-10')
             except (TypeError, IndexError):
                 out = [fasta, faa, neighbours[each + '_neighbour']]
-                cprint(out, "red")
+                # cprint(out, "red")
             try:
                 neighbours[each + '_product'] = ''.join(blast.get_protein_name())
             except TypeError:
-                cprint(blast.get_protein_name(), "red")
+                # cprint(blast.get_protein_name(), "red")
                 neighbours[each + '_product'] = "hypothetical protein"
         else:
             neighbours[each + '_product'] = "-"
@@ -203,13 +204,13 @@ def get_neighbour_products(faa, fasta, neighbours, gene, q, blast_db):
         #neighbour_OG = get_matches(neighbour_faa, "test", '/seq/databases/eggNOG/bactNOG/all_bactNOG.hmm')
         #neighbours[each + '_OG'] = list(neighbour_OG.values())[0][0][0]
         neighbours[each + '_OG'] = "NA"
-    print(neighbours)
+    # print(neighbours)
     return neighbours
 
 def compile_results(name, gene_matches, taxid, taxonomy, fasta, seqType, faa, q,
         seq_length, gc_content, gen_directory="protein_matches", c_bool="-", c_out="-"):
     for gene, match in gene_matches.items():
-        print(match)
+        # print(match)
         result = {}
         result['name'] = name
         result['match'] = match[0][0]
@@ -302,8 +303,9 @@ def _listener(q, headers, outfile='-', gen_directory="protein_matches",
                         SeqIO.write(seq_object, gen_directory + '/' +
                                     seq_object.name + ".faa", "fasta")
                     except (IOError, AttributeError):
-                        cprint("Unable to output sequence: " + seq_object, "red",
-                               file=sys.stderr)
+                        # cprint("Unable to output sequence: " + seq_object, "red",
+                               # file=sys.stderr)
+                       pass
             elif isinstance(out_object, tuple):
                 for head in out_object:
                     handle.write(head + "\t")
@@ -337,7 +339,7 @@ def get_matches(faa, name, hmm, evalue=1e-30):
     """Retrieves markers in hmm from the given proteome"""
     comp = calcCompleteness(faa, name, hmm, evalue=evalue, bias=0.3, best_domain=1e-5)
     foundmatches, _, _ = comp.get_completeness()
-    print(name + ': ' + str(foundmatches))
+    # print(name + ': ' + str(foundmatches))
     # ensure unique, best match for each hmm
     # but allow infinite gene matches for each hmm
     gene_matches = defaultdict(list)
@@ -359,7 +361,7 @@ def extract_protein(faa, gene_tag, write=None):
     protein_list = [seq for seq in SeqIO.parse(faa, "fasta") if seq.id in
                     gene_tag]
     if write:
-        print(protein_list)
+        # print(protein_list)
         for protein in protein_list:
             SeqIO.write(protein, NEIGHBOUR_DIR + '/' + protein.name + '.faa',
                         'fasta')
