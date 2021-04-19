@@ -4,8 +4,8 @@ with open('README.rst', mode='r') as f:
     l_description = f.read()
 
 setup(name='minerva',
-      version='0.1.0rc1',
-      description='Systematic inference of possible protein function',
+      version='0.8.0rc1',
+      description='Systematic of gene presence/absence and synteny',
       long_description=l_description,
       url='https://github.com/EricHugo/minerva',
       author='Eric Hugoson',
@@ -22,7 +22,7 @@ setup(name='minerva',
           'Programming Language :: Python :: 3.8',
           'Programming Language :: Python :: 3.9',
           ],
-      keywords='bioinformatics microbiology',
+      keywords='bioinformatics comparative genomics',
       install_requires=[
           'biopython>=1.53',
           'numpy>=1.13',
@@ -35,7 +35,6 @@ setup(name='minerva',
       entry_points={
           'console_scripts': [
               'minerva = minerva.minerva:main',
-              'providentia = providentia.providentia:main',
               ]
             }
       )
