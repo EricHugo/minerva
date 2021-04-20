@@ -11,10 +11,11 @@ from Bio import SeqIO
 from minerva import diamondBlast
 
 class clusterProteins():
-    def __init__(self, result_tab, threads=1):
+    def __init__(self, result_tab, inflation=1.4, threads=1):
         self.blast_results = []
         self.all_genes = set()
         self.results_df = pd.read_csv(result_tab, sep='\t')
+        self.infl = inflation
         paths = self.results_df['Forward_path'].values.tolist()
         paths = paths + self.results_df['Reverse_path'].values.tolist()
         paths = [path for path in paths if isinstance(path, str) ]
@@ -93,7 +94,7 @@ class clusterProteins():
             outfile = "mcl_minvera.tmp.out"
         self.blast_df.to_csv('test_mcl.csv', sep='\t', index=False, header=False)
         # define outfile also
-        mcl_command = ['mcl', 'test_mcl.csv', '--abc', '-o', outfile, '-I', '1.4']
+        mcl_command = ['mcl', 'test_mcl.csv', '--abc', '-o', outfile, '-I', self.infl]
         if args:
             mcl_command.append(args)
         print(mcl_command)
