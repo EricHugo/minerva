@@ -19,7 +19,7 @@ class clusterProteins():
         paths = self.results_df['Forward_path'].values.tolist()
         paths = paths + self.results_df['Reverse_path'].values.tolist()
         paths = [path for path in paths if isinstance(path, str) ]
-        print(paths)
+        # print(paths)
         # should sequences be filtered for compsotitional bias
         # CAST?
         self.blast_all(paths)
@@ -29,8 +29,8 @@ class clusterProteins():
     def _format_blast(self):
         labels = ["Gene", "Gene_comp", "E-value"]
         results_noself = []
-        # remove self-self hits
         for blast_result in self.blast_results:
+            # remove self-self hits
             if blast_result[0] == blast_result[1]:
                 continue
             # also remove pident
@@ -40,10 +40,10 @@ class clusterProteins():
             self.all_genes.add(blast_result[1])
         # fix order
         self.all_genes = list(self.all_genes)
-        print(results_noself)
-        print(self.all_genes)
+        # print(results_noself)
+        # print(self.all_genes)
         self.blast_df = pd.DataFrame.from_records(results_noself, columns=labels)
-        print(self.blast_df)
+        # print(self.blast_df)
         return
         ########################################
         results_dict = defaultdict(list)
@@ -55,10 +55,10 @@ class clusterProteins():
                     results_dict[gene].append(float(result[2]))
                 else:
                     results_dict[gene].append(0)
-        print(results_dict)
+        # print(results_dict)
         df = pd.DataFrame.from_dict(results_dict)
-        print(df.dtypes)
-        print(df)
+        # print(df.dtypes)
+        # print(df)
         df.to_csv('test_mcl')
         return
 
@@ -76,7 +76,7 @@ class clusterProteins():
         makedb = ['diamond', 'makedb', '--in', filename, '-d', filename]
         db = subprocess.run(makedb)
         if db.returncode > 0:
-            print("Failed to makedb")
+            raise RuntimeError('diamond failed to create db. Check %s' % filename)
             return None
         # blast cat file against db
         blast = diamondBlast(filename, filename)
@@ -85,20 +85,20 @@ class clusterProteins():
                                       ).strip().split('\n')
         for blast_result in results:
             self.blast_results.append(blast_result.split('\t'))
-        print(self.blast_results)
+        # print(self.blast_results)
         # return scores
         return self.blast_results
 
     def mcl_cluster(self, *args, outfile=None):
         if not outfile:
             outfile = "mcl_minvera.tmp.out"
-        self.blast_df.to_csv('test_mcl.csv', sep='\t', index=False, header=False)
+        self.blast_df.to_csv('mcl_result.csv', sep='\t', index=False, header=False)
         # define outfile also
-        mcl_command = ['mcl', 'test_mcl.csv', '--abc', '-o', outfile, '-I', str(self.infl)]
+        mcl_command = ['mcl', 'mcl_result.csv', '--abc', '-o', outfile, '-I', str(self.infl)] 
         if args:
-            mcl_command.append(args)
-        print(mcl_command)
-        subprocess.run(mcl_command)
+            mcl_command.append(args) 
+        # print(mcl_command)
+        subprocess.run(mcl_command, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         return outfile
 
     def assign_groups(self, infile, name='COG'):
@@ -108,7 +108,7 @@ class clusterProteins():
         with open(infile) as mcl_clusters:
             for i, cluster in enumerate(mcl_clusters):
                 clusters[name + str(i)] = cluster.strip().split()
-        print(clusters)
+        # print(clusters)
         return clusters
 
     def attribute_COGs(self, clusters, outfile=None):
@@ -118,6 +118,6 @@ class clusterProteins():
             for gene in genes:
                 self.results_df.loc[self.results_df['Forward_neighbour'].str.match(gene), 'Forward_OG'] = cog
                 self.results_df.loc[self.results_df['Reverse_neighbour'].str.match(gene), 'Reverse_OG'] = cog
-        print(self.results_df)
+        # print(self.results_df)
         self.results_df.to_csv(outfile, sep='\t')
         return outfile
