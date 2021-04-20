@@ -54,6 +54,7 @@ def _worker(genome, seqType, raw_name, argv, q, tax, evalue=1e-30,
         log_lvl = logging.INFO
     logger = _configure_logger(q, genome, log_lvl)
     logger.log(logging.INFO, "Started work on %s" % genome)
+    print("Started work on %s" % genome, file=sys.stderr)
     if re.match("(gb.?.?)|genbank", seqType):
         # print(genome)
         for feature in get_gbk_feature(genome, 'features'):
@@ -584,16 +585,18 @@ def main():
     logger.log(logging.INFO, "Finished work on all given sequences")
     q.put("done")
     logger.log(logging.INFO, "Waiting for listener to finish and exit")
-    listener.get()
-    pool.close()
-    pool.join()
     # finally cluster neighbours
     if args.noneighbours and args.clusterneighbours:
+        print("Begun clustering neighbours", file=sys.stderr)
         clustering = clusterProteins(args.outfile, threads=args.threads)
         out = clustering.mcl_cluster()
         clusters = clustering.assign_groups(out)
         clustered_tsv = clustering.attribute_COGs(clusters)
         shutil.copy(clustered_tsv, args.outfile)
+    print("minerva has finished", file=sys.stderr)
+    listener.get()
+    pool.close()
+    pool.join()
     return
 
 if __name__ == "__main__":
