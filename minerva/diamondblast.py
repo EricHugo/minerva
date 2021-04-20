@@ -44,7 +44,7 @@ class diamondBlast():
         blast_args = ['diamond', 'blastp', '-d', self.db, '-q', query, '-e', 
                       evalue, '-p', '1'] 
         [blast_args.append(arg) for arg in args]
-        print(blast_args)
+        # print(blast_args)
         self.blast_result = subprocess.run(blast_args, stdout=subprocess.PIPE)
         if self.blast_result.returncode > 0:
             print("something went horribly wrong")
