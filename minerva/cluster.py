@@ -94,7 +94,7 @@ class clusterProteins():
             outfile = "mcl_minvera.tmp.out"
         self.blast_df.to_csv('test_mcl.csv', sep='\t', index=False, header=False)
         # define outfile also
-        mcl_command = ['mcl', 'test_mcl.csv', '--abc', '-o', outfile, '-I', self.infl]
+        mcl_command = ['mcl', 'test_mcl.csv', '--abc', '-o', outfile, '-I', str(self.infl)]
         if args:
             mcl_command.append(args)
         print(mcl_command)
@@ -114,7 +114,7 @@ class clusterProteins():
     def attribute_COGs(self, clusters):
         for cog, genes in clusters.items():
             for gene in genes:
-                self.results_df['Forward_OG'][self.results_df['Forward_neighbour'].str.match(gene)] = cog
-                self.results_df['Reverse_OG'][self.results_df['Reverse_neighbour'].str.match(gene)] = cog
+                self.results_df.loc[self.results_df['Forward_neighbour'].str.match(gene), 'Forward_OG'] = cog
+                self.results_df.loc[self.results_df['Reverse_neighbour'].str.match(gene), 'Reverse_OG'] = cog
         print(self.results_df)
         self.results_df.to_csv('test_final', sep='\t')
