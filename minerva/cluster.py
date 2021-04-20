@@ -111,10 +111,13 @@ class clusterProteins():
         print(clusters)
         return clusters
 
-    def attribute_COGs(self, clusters):
+    def attribute_COGs(self, clusters, outfile=None):
+        if not outfile:
+            outfile = "cluster_assignment.tsv"
         for cog, genes in clusters.items():
             for gene in genes:
                 self.results_df.loc[self.results_df['Forward_neighbour'].str.match(gene), 'Forward_OG'] = cog
                 self.results_df.loc[self.results_df['Reverse_neighbour'].str.match(gene), 'Reverse_OG'] = cog
         print(self.results_df)
-        self.results_df.to_csv('test_final', sep='\t')
+        self.results_df.to_csv(outfile, sep='\t')
+        return outfile

@@ -544,6 +544,10 @@ def main():
     if args.taxa and not args.rank:
         raise RuntimeError('Taxa argument also requires specifying rank argument')
 
+    if args.noneighbours and args.clusterneighbours and args.outfile == '-':
+        raise KeyError('Clustering neighbours requires a named outfile. Please '\
+                        'define an --outfile')
+
     # Initialise taxdump, threadsafety
     tax = parseTaxonomy()
 
@@ -588,7 +592,8 @@ def main():
         clustering = clusterProteins(args.outfile, threads=args.threads)
         out = clustering.mcl_cluster()
         clusters = clustering.assign_groups(out)
-        clustering.attribute_COGs(clusters)
+        clustered_tsv = clustering.attribute_COGs(clusters)
+        shutil.copy(clustered_tsv, args.outfile)
     return
 
 if __name__ == "__main__":
