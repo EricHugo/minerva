@@ -74,7 +74,7 @@ class clusterProteins():
         handle.close()
         # makedb from cat file
         makedb = ['diamond', 'makedb', '--in', filename, '-d', filename]
-        db = subprocess.run(makedb)
+        db = subprocess.run(makedb, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         if db.returncode > 0:
             raise RuntimeError('diamond failed to create db. Check %s' % filename)
             return None
